@@ -11,6 +11,14 @@ remove the `@AGENTS.md` reference above (removing it just gets silently re-added
 contents). It flags that the installed Next.js version may differ from training-data assumptions;
 read it before writing any Next.js-specific code.
 
+**Concrete proof this matters, not just a theoretical warning**: this project's installed Next.js
+(16) has deprecated `middleware.ts`/`middleware()` and renamed the convention to `proxy.ts`/
+`proxy()` — confirmed by reading `node_modules/next/dist/docs/.../file-conventions/proxy.md`
+directly, not assumed. `docs/technical-plan.md` originally said `middleware.ts` and was wrong.
+**Rule going forward**: before relying on a Next.js file-convention name or API shape from
+training data, grep `node_modules/next/dist/docs/` for it first — this is cheap and has already
+caught one real mistake.
+
 ## What this is
 
 Final project for the "Internet Technologies" course (RUNI CS 2026, Full-Stack track).

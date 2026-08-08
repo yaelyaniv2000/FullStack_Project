@@ -53,7 +53,7 @@ feature means adding a module, not editing several shared files.
 │   ├── scheduling/                       # the heuristic engine + generate/publish actions
 │   └── notifications/
 ├── lib/
-│   ├── supabase/            { server.ts, client.ts }   # client factories
+│   ├── supabase/  { server.ts, client.ts, proxy.ts }  # client factories + session-refresh helper
 │   ├── auth.ts                           # getCurrentUser(), requireAdmin(), requireWorker()
 │   └── result.ts                         # shared Server Action result type (see Error handling)
 ├── supabase/
@@ -64,9 +64,18 @@ feature means adding a module, not editing several shared files.
 │   ├── unit/            # scheduling heuristic, expiry computation
 │   ├── integration/     # server actions against a local Supabase instance
 │   └── e2e/              # Playwright, full flows
-├── middleware.ts                         # refreshes the Supabase session on each request
+├── proxy.ts             # refreshes the Supabase session on each request (see note below)
 └── docs/                                 # this doc and its siblings
 ```
+
+**Correction from the original draft**: this file was originally planned as `middleware.ts`
+(the conventional Next.js name). The installed Next.js version (16) has **deprecated and
+renamed** that file convention to `proxy.ts`, exporting a function named `proxy` instead of
+`middleware` — confirmed against the actual installed docs
+(`node_modules/next/dist/docs/.../file-conventions/proxy.md`), not assumed from training data.
+This is exactly the kind of drift `AGENTS.md` warns about — worth rechecking framework
+conventions against the installed docs before trusting prior knowledge, especially for anything
+file-convention-based rather than plain library-API-based.
 
 Every `features/<domain>/actions.ts` file is the **only** place that writes to its domain's
 tables — pages call into it, never query/write Supabase directly for another domain's data.

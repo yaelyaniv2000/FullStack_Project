@@ -28,9 +28,9 @@ is yours to edit freely.
 
 ## Phase 1 — Project setup & external accounts
 
-- [ ] 🔌 Create a GitHub repository for the project
-- [ ] 🔌 Create a Supabase project (this becomes your Database + Auth)
-- [ ] 💻 Scaffold the Next.js + TypeScript app locally, push initial commit
+- [X] 🔌 Create a GitHub repository for the project
+- [X] 🔌 Create a Supabase project (this becomes your Database + Auth)
+- [X] 💻 Scaffold the Next.js + TypeScript app locally, push initial commit
 - [ ] 🔌 Create a Vercel project linked to the GitHub repo (enables auto-deploy on push)
 - [ ] 🔌 Set up local environment variables (`.env.local`) with Supabase URL/keys; add the same
       vars in Vercel's project settings
