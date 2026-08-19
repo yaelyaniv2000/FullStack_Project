@@ -31,11 +31,13 @@ is yours to edit freely.
 - [X] 🔌 Create a GitHub repository for the project
 - [X] 🔌 Create a Supabase project (this becomes your Database + Auth)
 - [X] 💻 Scaffold the Next.js + TypeScript app locally, push initial commit
-- [ ] 🔌 Create a Vercel project linked to the GitHub repo (enables auto-deploy on push)
-- [ ] 🔌 Set up local environment variables (`.env.local`) with Supabase URL/keys; add the same
+- [X] 🔌 Create a Vercel project linked to the GitHub repo (enables auto-deploy on push)
+- [X] 🔌 Set up local environment variables (`.env.local`) with Supabase URL/keys; add the same
       vars in Vercel's project settings
-- [ ] 💻 Confirm a "hello world" page deploys successfully to a live Vercel URL before writing
-      real features — validates the whole pipeline early
+- [X] 💻 Confirm a "hello world" page deploys successfully to a live Vercel URL before writing
+      real features — validates the whole pipeline early. Live at
+      https://full-stack-project-neon-pi.vercel.app — verified publicly reachable (200, no
+      Deployment Protection wall) and confirmed the Hebrew/RTL layout deployed correctly.
 
 ## Phase 2 — Data model & auth (single organization)
 

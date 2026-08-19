@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Squadron Personnel & Shift Scheduling App
 
-## Getting Started
+Final project for "Internet Technologies" (RUNI CS 2026). See `docs/product-spec.md`,
+`docs/architecture.md`, and `docs/technical-plan.md` for the full product/technical plan, and
+`CLAUDE.md` for a running log of key decisions.
 
-First, run the development server:
+**Live app**: https://full-stack-project-neon-pi.vercel.app
+**Repo**: https://github.com/yaelyaniv2000/FullStack_Project
+
+## Stack
+
+Next.js (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Hebrew/RTL), Supabase
+(Database + Auth), deployed on Vercel.
+
+## Running locally
 
 ```bash
+npm install
+cp .env.local.example .env.local   # then fill in real values, see below
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See `.env.local.example` for the current list. As of now:
 
-## Learn More
+- `NEXT_PUBLIC_SUPABASE_URL` — the Supabase project URL (Project Settings → API).
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the Supabase anon/public key (same page). Safe to expose
+  client-side; access control is enforced by Row-Level Security, not by keeping this secret.
 
-To learn more about Next.js, take a look at the following resources:
+More variables will be added here as they're introduced (e.g. a server-only service role key,
+needed later for the admin worker-invite flow — see `docs/architecture.md`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> Note: this is a work-in-progress student project — full local run instructions and a complete
+> env var explanation are a required submission deliverable and will be finalized once the app's
+> core features are built (see `TODO.md`).
