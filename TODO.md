@@ -41,7 +41,7 @@ is yours to edit freely.
 
 ## Phase 2 — Data model & auth (single organization)
 
-- [ ] 💻 Design and create the DB schema/migrations per `docs/architecture.md`: `profiles`,
+- [X] 💻 Design and create the DB schema/migrations per `docs/architecture.md`: `profiles`,
       `qualifications`, `positions`, `position_qualifications`, `position_renews_qualifications`
       (a position can renew more than one qualification), `worker_qualifications` (incl.
       `source`/`status`, no stored expiry — computed at query time), `shift_templates`,

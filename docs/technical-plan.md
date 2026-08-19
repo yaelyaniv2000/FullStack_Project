@@ -196,8 +196,8 @@ assignments
   worker_id     uuid references profiles(id) on delete cascade,
   created_by    uuid references profiles(id) null,  -- null = engine-generated; set = admin who added/edited it
   created_at    timestamptz not null default now(),
-  foreign key (shift_id, position_id) references shift_positions(shift_id, position_id),
-  unique (shift_id, position_id, worker_id)   -- no duplicate rows for the same slot+worker
+  primary key (shift_id, position_id, worker_id),  -- no duplicate rows for the same slot+worker
+  foreign key (shift_id, position_id) references shift_positions(shift_id, position_id)
 
 notifications
   id          uuid PK
