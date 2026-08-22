@@ -41,6 +41,12 @@ export function PositionForm({
     }
   }, [state, onDone]);
 
+  // A qualification that never expires (renewal_interval_days null) has nothing to renew --
+  // only offer expiring qualifications in the "renews" picker.
+  const renewableQualifications = allQualifications.filter(
+    (q) => q.renewal_interval_days !== null,
+  );
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -66,7 +72,7 @@ export function PositionForm({
         qualificationFieldName="renewsQualificationId"
         optionFieldName="renewsOptionId__unused"
         label="כשירויות שהתפקיד מחדש (אופציונלי)"
-        allQualifications={allQualifications}
+        allQualifications={renewableQualifications}
         allowOptionSelection={false}
         initialSelected={position?.renewsQualifications.map((q) => ({
           qualificationId: q.id,

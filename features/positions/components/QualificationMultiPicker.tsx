@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { ChevronsUpDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import type { Qualification } from "@/features/qualifications/queries";
 
 export type SelectedRequirement = {
@@ -45,6 +54,7 @@ export function QualificationMultiPicker({
 }) {
   const [selected, setSelected] = useState<SelectedRequirement[]>(initialSelected);
   const [pendingQualificationId, setPendingQualificationId] = useState<string | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   const selectedIds = new Set(selected.map((s) => s.qualificationId));
   const available = allQualifications.filter(
@@ -139,18 +149,43 @@ export function QualificationMultiPicker({
           </Button>
         </div>
       ) : available.length > 0 ? (
-        <Select value="" onValueChange={(value) => handlePick(value as string)}>
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="הוספת כשירות..." />
-          </SelectTrigger>
-          <SelectContent>
-            {available.map((q) => (
-              <SelectItem key={q.id} value={q.id}>
-                {q.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-56 justify-between font-normal text-muted-foreground"
+              />
+            }
+          >
+            הוספת כשירות...
+            <ChevronsUpDown className="size-4 opacity-50" />
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0">
+            <Command>
+              <CommandInput placeholder="חיפוש כשירות..." />
+              <CommandList>
+                <CommandEmpty>לא נמצאו כשירויות</CommandEmpty>
+                <CommandGroup>
+                  {available.map((q) => (
+                    <CommandItem
+                      key={q.id}
+                      value={q.name}
+                      onSelect={() => {
+                        handlePick(q.id);
+                        setAddMenuOpen(false);
+                      }}
+                    >
+                      {q.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       ) : (
         <p className="text-sm text-muted-foreground">כל הכשירויות כבר נוספו.</p>
       )}
