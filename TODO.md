@@ -120,10 +120,24 @@ is yours to edit freely.
       One real bug caught this way: Base UI's `Select` needs an `items` prop to render the
       selected item's *label* instead of its raw value when controlled externally (`value=`) —
       fixed in `GrantQualificationForm`.
-- [ ] 💻 Admin: approve/reject pending self-reported qualifications (see Phase 4)
-- [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
-      qualification approvals, upcoming shifts, qualifications expiring soon
-- [ ] 💻 Admin: create/edit/delete shift templates (named bundle of positions + headcount)
+- [X] 💻 Admin: approve/reject pending self-reported qualifications — extends the same worker
+      detail page: a `pending` row shows a "דווח על ידי העובד/ת" badge plus אישור/דחייה buttons
+      instead of ביטול (`reviewQualification`, sharing its DB update with `revokeQualification`
+      via a small private helper — both are just a status change under the same RLS policy).
+      There's no worker self-report UI yet (Phase 4), so verified by seeding a pending row
+      directly via the service-role client (simulating what a future self-report insert would
+      produce) — confirmed the badge/buttons render correctly, approve transitions to `מאושר`
+      leaving a ביטול button, reject transitions to `בוטל` with no action buttons, no console
+      errors.
+- [X] 💻 Admin: create/edit/delete shift templates (named bundle of positions + headcount) —
+      `/admin/shift-templates`, added to the admin nav. `ShiftTemplatePositionsPicker` extends the
+      searchable-combobox pattern with a per-row headcount number input (a new combined
+      picker+quantity UI — no prior component in the codebase did both). Update uses the same
+      replace-all-join-rows sync as `position_qualifications`. Verified in a real browser: create
+      with two positions (custom headcount on one), edit (remove one position, change the other's
+      headcount, confirmed the edit form pre-fills correctly), delete, the nav link, and — reusing
+      an error path that already anticipated this — confirmed a position still referenced by a
+      template can't be deleted (`on delete restrict`, existing Hebrew message). No console errors.
 - [ ] 💻 Admin: create/edit/delete shifts (date/time, location, required positions & headcount) —
       optionally starting from a template (copies its values in, no live link) and adjusting.
       **UX note from user (2026-08-22)**: when picking positions for a shift, allow choosing an
@@ -132,6 +146,12 @@ is yours to edit freely.
 - [ ] 💻 Admin: open an availability request window for an upcoming period
 - [ ] 💻 Seed placeholder positions/qualifications for development — replace with the squadron's
       real ones whenever that info arrives, no code changes needed
+- [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
+      qualification approvals, upcoming shifts, qualifications expiring soon. **Ordering note
+      (2026-08-22)**: deliberately built last in Phase 3, after shift templates/shifts/
+      availability exist — two of its four widgets (understaffed shifts, upcoming shifts) need
+      the shifts data model, so building it earlier would mean half the page has nothing real to
+      query/verify against.
 
 ## Phase 4 — Worker features
 

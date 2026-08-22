@@ -58,18 +58,37 @@ export async function grantQualification(
   return { success: true, data: undefined };
 }
 
-export async function revokeQualification(id: string, workerId: string): Promise<Result<void>> {
+async function updateQualificationStatus(
+  id: string,
+  workerId: string,
+  status: "approved" | "rejected",
+  errorMessage: string,
+): Promise<Result<void>> {
   const admin = await requireAdmin();
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("worker_qualifications")
-    .update({ status: "rejected", reviewed_by: admin.id, reviewed_at: new Date().toISOString() })
+    .update({ status, reviewed_by: admin.id, reviewed_at: new Date().toISOString() })
     .eq("id", id);
   if (error) {
-    return { success: false, error: "שגיאה בביטול הכשירות" };
+    return { success: false, error: errorMessage };
   }
 
   revalidatePath(`/admin/personnel/${workerId}`);
   return { success: true, data: undefined };
+}
+
+/** Cancels a currently-active (admin-granted or already-approved) qualification. */
+export async function revokeQualification(id: string, workerId: string): Promise<Result<void>> {
+  return updateQualificationStatus(id, workerId, "rejected", "שגיאה בביטול הכשירות");
+}
+
+/** Approves or rejects a worker's pending self-reported qualification. */
+export async function reviewQualification(
+  id: string,
+  workerId: string,
+  decision: "approved" | "rejected",
+): Promise<Result<void>> {
+  return updateQualificationStatus(id, workerId, decision, "שגיאה בעדכון סטטוס הכשירות");
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { revokeQualification } from "../actions";
+import { revokeQualification, reviewQualification } from "../actions";
 import type { WorkerQualification } from "../queries";
 
 const STATUS_LABEL: Record<WorkerQualification["status"], string> = {
@@ -39,6 +39,14 @@ export function WorkerQualificationsList({
     setPendingId(null);
   }
 
+  async function handleReview(id: string, decision: "approved" | "rejected") {
+    setError(null);
+    setPendingId(id);
+    const result = await reviewQualification(id, workerId, decision);
+    if (!result.success) setError(result.error);
+    setPendingId(null);
+  }
+
   if (qualifications.length === 0) {
     return <p className="text-sm text-muted-foreground">לעובד/ת אין עדיין כשירויות.</p>;
   }
@@ -58,6 +66,9 @@ export function WorkerQualificationsList({
                   <span className="font-medium">{q.qualificationName}</span>
                   {q.optionLabel ? <Badge variant="secondary">{q.optionLabel}</Badge> : null}
                   <Badge variant={STATUS_VARIANT[q.status]}>{STATUS_LABEL[q.status]}</Badge>
+                  {q.status === "pending" && q.source === "self_reported" ? (
+                    <Badge variant="outline">דווח על ידי העובד/ת</Badge>
+                  ) : null}
                   {expired && q.status === "approved" ? (
                     <Badge variant="destructive">פג תוקף</Badge>
                   ) : null}
@@ -76,6 +87,24 @@ export function WorkerQualificationsList({
                 >
                   ביטול
                 </Button>
+              ) : q.status === "pending" ? (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={pendingId === q.id}
+                    onClick={() => handleReview(q.id, "approved")}
+                  >
+                    אישור
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pendingId === q.id}
+                    onClick={() => handleReview(q.id, "rejected")}
+                  >
+                    דחייה
+                  </Button>
+                </div>
               ) : null}
             </li>
           );
