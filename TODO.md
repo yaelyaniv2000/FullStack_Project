@@ -48,10 +48,15 @@ is yours to edit freely.
       `shift_template_positions`, `availability_windows`, `shifts` (incl. nullable
       `published_at`), `shift_positions`, `availability`, `assignments` (no status column —
       derived from `shifts.published_at`), `notifications`
-- [ ] 🔌 Configure Supabase Auth (decide: email/password vs. magic link)
-- [ ] 💻 Write Row-Level Security policies based on role (Admin vs Worker) and, for personal data
+- [X] 🔌 Configure Supabase Auth — decided: email/password, admin-created accounts (no real email
+      sending in v1, see CLAUDE.md). Public sign-ups disabled, production redirect URL added,
+      minimum password length raised to 8.
+- [X] 💻 Write Row-Level Security policies based on role (Admin vs Worker) and, for personal data
       (availability, own qualifications), scoped to the requesting user — no multi-tenant
-      isolation needed since this is a single organization
+      isolation needed since this is a single organization. Verified behaviorally (not just "no
+      error") with two real test accounts: worker/admin visibility, the self-report status/source
+      restriction, shift_templates' zero worker access, and the assignments publish-timing rule
+      all confirmed with actual role-simulated queries.
 - [ ] 💻 Build invite-based account creation (Admin creates/invites worker accounts) — no public
       self-serve signup, since this is one closed organization
 - [ ] 🔌 If using email invites: connect an email-sending service (e.g. Supabase's built-in

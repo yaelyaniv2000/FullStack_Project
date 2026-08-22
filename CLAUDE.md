@@ -157,6 +157,21 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
   from its shift's `published_at` (null = admin-only draft, set = published & visible to the
   worker). Workers must never see assignments for a shift before `published_at` is set — this is
   a timing-based authorization rule, not just a role check, and needs its own RLS policy care.
+  **Implemented and behaviorally verified** in `supabase/migrations/20260822061054_add_rls_policies.sql`
+  — includes a reusable `is_admin()` helper (avoids repeating the same subquery in ~20 policies)
+  and explicit `GRANT`s to `authenticated` (needed since "automatically expose new tables" is off
+  — RLS alone doesn't matter if the base SQL privilege isn't granted). Verified with two real test
+  accounts (`test-admin@example.com` / `test-worker@example.com`, kept around for reuse when
+  building the account-creation flow next) using role-simulated queries
+  (`set local role authenticated; set local request.jwt.claims = ...`), not just "no error."
+- **Auth is email/password, admin-created accounts, no real email sending in v1.** Public
+  self-signup is disabled at the Supabase project level. The admin creates a worker's account
+  directly (email + password, `email_confirm: true`) via the Admin API — requires the
+  service-role key server-side. No confirmation/invite email is sent; the admin relays the
+  credentials out-of-band. Considered and rejected for v1: magic-link/OTP login (Supabase's
+  default email sending is rate-limited to a few/hour — a real risk during a live demo) and
+  building real email invites now (an easy, isolated addition later — swap one function, nothing
+  else changes, see the auth conversation in project history for the full reasoning).
 
 ## Where things live
 
