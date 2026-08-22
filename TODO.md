@@ -57,12 +57,21 @@ is yours to edit freely.
       error") with two real test accounts: worker/admin visibility, the self-report status/source
       restriction, shift_templates' zero worker access, and the assignments publish-timing rule
       all confirmed with actual role-simulated queries.
-- [ ] 💻 Build invite-based account creation (Admin creates/invites worker accounts) — no public
-      self-serve signup, since this is one closed organization
+- [X] 💻 Build invite-based account creation (Admin creates/invites worker accounts) — no public
+      self-serve signup, since this is one closed organization. Built: `/login`, admin layout
+      guard + nav, `/admin/personnel` (create-worker form + list). **Verified in a real browser**
+      end to end (login → create worker → appears in list → logout), not just build-passes —
+      caught and fixed a real bug this way: `service_role` had zero base table privileges (not
+      implicitly exempt just because it bypasses RLS), fixed via a new grants migration. See
+      CLAUDE.md.
 - [ ] 🔌 If using email invites: connect an email-sending service (e.g. Supabase's built-in
-      email or Resend) — otherwise an invite-link/code approach avoids this dependency entirely
+      email or Resend) — skipped: not using email invites in v1 (see CLAUDE.md), admin sets the
+      password directly and relays it out-of-band
 
 ## Phase 3 — Admin features (core CRUD)
+
+> Note: the basic personnel page (create a worker account, see the list) already exists from
+> Phase 2 step 4 — the items below extend it (qualifications) rather than starting from scratch.
 
 - [ ] 💻 Admin: manage qualifications (name + optional renewal interval)
 - [ ] 💻 Admin: manage position types — which qualifications each requires, and (optionally)

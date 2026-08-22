@@ -161,9 +161,16 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
   — includes a reusable `is_admin()` helper (avoids repeating the same subquery in ~20 policies)
   and explicit `GRANT`s to `authenticated` (needed since "automatically expose new tables" is off
   — RLS alone doesn't matter if the base SQL privilege isn't granted). Verified with two real test
-  accounts (`test-admin@example.com` / `test-worker@example.com`, kept around for reuse when
-  building the account-creation flow next) using role-simulated queries
-  (`set local role authenticated; set local request.jwt.claims = ...`), not just "no error."
+  accounts (`test-admin@example.com` / `test-worker@example.com`, kept around for reuse across
+  later phases) using role-simulated queries (`set local role authenticated; set local
+  request.jwt.claims = ...`), not just "no error."
+  **A real bug this caused, caught by actually testing in a browser, not just building**:
+  `service_role` also has *zero* base privileges by default with auto-expose off — it is **not**
+  implicitly exempt just because it bypasses RLS. A grant and a bypass are two different things;
+  `service_role` still needs the grant to attempt the operation at all. Fixed in
+  `supabase/migrations/20260822065939_grant_service_role_privileges.sql`. **Rule going forward**:
+  any new table needs both `GRANT ... TO authenticated` *and* `GRANT ... TO service_role`, not
+  just the former — add both in the same migration that creates the table.
 - **Auth is email/password, admin-created accounts, no real email sending in v1.** Public
   self-signup is disabled at the Supabase project level. The admin creates a worker's account
   directly (email + password, `email_confirm: true`) via the Admin API — requires the

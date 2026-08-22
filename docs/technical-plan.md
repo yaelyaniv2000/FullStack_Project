@@ -14,17 +14,15 @@ feature means adding a module, not editing several shared files.
 /
 ├── app/
 │   ├── (auth)/
-│   │   ├── login/page.tsx
-│   │   ├── accept-invite/page.tsx
-│   │   └── auth/callback/route.ts        # Route Handler: exchanges magic-link code for a session
+│   │   └── login/page.tsx                # email/password — see auth decision in CLAUDE.md
 │   ├── (admin)/
-│   │   ├── layout.tsx                    # admin-only layout guard
+│   │   ├── layout.tsx                    # admin-only guard + shared nav (back to dashboard, logout)
 │   │   └── admin/
 │   │       ├── qualifications/page.tsx
 │   │       ├── positions/page.tsx
 │   │       ├── personnel/
-│   │       │   ├── page.tsx
-│   │       │   └── [workerId]/page.tsx
+│   │       │   └── page.tsx              # list workers + create-worker-account form (built)
+│   │       │   └── [workerId]/page.tsx   # not yet built — qualification detail comes in Phase 3
 │   │       ├── shift-templates/page.tsx
 │   │       ├── shifts/page.tsx
 │   │       ├── availability-windows/
@@ -44,6 +42,9 @@ feature means adding a module, not editing several shared files.
 │   ├── ui/                               # shadcn/ui generated primitives
 │   └── shared/                           # cross-domain components (nav, status badges, etc.)
 ├── features/                             # one folder per domain concept
+│   ├── auth/                { actions.ts (login/logout), components/LoginForm.tsx }    -- built
+│   ├── accounts/             { actions.ts (createWorkerAccount), queries.ts (listWorkers),
+│   │                           components/CreateWorkerForm.tsx }                        -- built
 │   ├── qualifications/     { actions.ts, queries.ts, schema.ts, types.ts, components/ }
 │   ├── positions/          { ... same shape ... }
 │   ├── worker-qualifications/
@@ -53,13 +54,16 @@ feature means adding a module, not editing several shared files.
 │   ├── scheduling/                       # the heuristic engine + generate/publish actions
 │   └── notifications/
 ├── lib/
-│   ├── supabase/  { server.ts, client.ts, proxy.ts }  # client factories + session-refresh helper
-│   ├── auth.ts                           # getCurrentUser(), requireAdmin(), requireWorker()
-│   └── result.ts                         # shared Server Action result type (see Error handling)
+│   ├── supabase/  { server.ts, client.ts, proxy.ts, admin.ts }  -- admin.ts is the service-role
+│   │                client factory, added when building account creation; built
+│   ├── auth.ts                           # getCurrentUser(), requireAdmin() -- built (no
+│   │                                       requireWorker() yet, no worker pages exist yet)
+│   └── result.ts                         # shared Server Action result type -- built
 ├── supabase/
 │   └── migrations/                       # versioned schema changes (see Architecture doc)
 ├── types/
-│   └── database.types.ts                 # generated via `supabase gen types typescript`
+│   └── database.types.ts                 # generated via `supabase gen types typescript` -- built,
+│                                            regenerate after every schema-changing migration
 ├── tests/
 │   ├── unit/            # scheduling heuristic, expiry computation
 │   ├── integration/     # server actions against a local Supabase instance
@@ -76,6 +80,12 @@ renamed** that file convention to `proxy.ts`, exporting a function named `proxy`
 This is exactly the kind of drift `AGENTS.md` warns about — worth rechecking framework
 conventions against the installed docs before trusting prior knowledge, especially for anything
 file-convention-based rather than plain library-API-based.
+
+**Second correction**: the original draft's `accept-invite/page.tsx` and `auth/callback/route.ts`
+assumed magic-link auth. Auth was later decided as email/password with admin-created accounts and
+no real email sending in v1 (see `CLAUDE.md`) — neither file is needed: there's no invite link to
+accept and no redirect-based code exchange, just a direct `signInWithPassword` call. Dropped
+rather than built-and-unused.
 
 Every `features/<domain>/actions.ts` file is the **only** place that writes to its domain's
 tables — pages call into it, never query/write Supabase directly for another domain's data.
@@ -256,11 +266,27 @@ UI surfaces clearly, not a silent cascade.
 
 ## תיאור ה-API (API description)
 
-Per `architecture.md`: Server Actions for all mutations, one Route Handler
-(`app/(auth)/auth/callback/route.ts`) for the Supabase magic-link exchange. Every action returns
-the shared `Result<T>` type (see Error handling) rather than throwing to the caller.
+Per `architecture.md`: Server Actions for all mutations. No Route Handler exists yet — the
+magic-link callback route in the original draft was dropped along with magic-link auth itself
+(see the correction above); nothing built so far has needed a genuine HTTP endpoint. Every action
+returns the shared `Result<T>` type (see Error handling) rather than throwing to the caller,
+except `login`/`logout` (see below) which redirect on success and only "return" in the failure
+case, since `redirect()` itself never returns.
 
-Representative actions per module (not exhaustive — mirrors the CRUD table above):
+Built so far:
+
+```ts
+// features/auth/actions.ts
+login(prevState, formData: { email, password }): { error: string } | undefined  // redirects to /dashboard on success
+logout(): void  // redirects to /login
+
+// features/accounts/actions.ts
+createWorkerAccount(prevState, formData: { fullName, email, password }): Result<void>  // admin only
+// features/accounts/queries.ts
+listWorkers(): Profile[]  // admin only (enforced by RLS, not just the query)
+```
+
+Representative actions for not-yet-built modules (mirrors the CRUD table above):
 
 ```ts
 // features/qualifications/actions.ts

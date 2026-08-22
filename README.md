@@ -27,11 +27,14 @@ Open [http://localhost:3000](http://localhost:3000).
 See `.env.local.example` for the current list. As of now:
 
 - `NEXT_PUBLIC_SUPABASE_URL` — the Supabase project URL (Project Settings → API).
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the Supabase anon/public key (same page). Safe to expose
-  client-side; access control is enforced by Row-Level Security, not by keeping this secret.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the Supabase anon/public key, i.e. Supabase's newer
+  "Publishable key" (same page). Safe to expose client-side; access control is enforced by
+  Row-Level Security, not by keeping this secret.
+- `SUPABASE_SERVICE_ROLE_KEY` — Supabase's "Secret key" (same page). **Server-only, never
+  exposed to the browser.** Used for admin operations that must bypass RLS, currently just
+  creating worker accounts (`auth.admin.createUser`).
 
-More variables will be added here as they're introduced (e.g. a server-only service role key,
-needed later for the admin worker-invite flow — see `docs/architecture.md`).
+More variables will be added here as they're introduced.
 
 > Note: this is a work-in-progress student project — full local run instructions and a complete
 > env var explanation are a required submission deliverable and will be finalized once the app's
