@@ -1,14 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { logout } from "@/features/auth/actions";
-import { AppHeader, type NavLink } from "@/components/shared/AppHeader";
-
-const ADMIN_LINKS: NavLink[] = [
-  { href: "/dashboard", label: "דשבורד" },
-  { href: "/admin/qualifications", label: "כשירויות" },
-  { href: "/admin/personnel", label: "אנשי צוות" },
-];
-const WORKER_LINKS: NavLink[] = [{ href: "/dashboard", label: "דשבורד" }];
+import { AppHeader } from "@/components/shared/AppHeader";
+import { ADMIN_LINKS, WORKER_LINKS } from "@/components/shared/nav-links";
 
 export default async function DashboardPage() {
   const profile = await getCurrentUser();

@@ -91,8 +91,12 @@ is yours to edit freely.
       `/admin/*` and `/dashboard` now use it. Verified in a real browser (menu opens, navigates
       correctly); one false alarm along the way — a screenshot taken mid-animation looked broken
       but a slightly longer wait showed it rendering correctly.
-- [ ] 💻 Admin: manage position types — which qualifications each requires, and (optionally)
-      which qualification the position renews when fulfilled
+- [X] 💻 Admin: manage position types — which qualifications each requires, and (optionally)
+      which qualification the position renews when fulfilled — `/admin/positions`, checkbox
+      multi-select for both (a position can require/renew more than one). Deduplicated the admin
+      nav-links list (was copy-pasted into two files) into `components/shared/nav-links.ts`
+      before adding a third copy. Verified in a real browser: create with both required + renews
+      set, edit (add another required qualification), delete — all confirmed, no console errors.
 - [ ] 💻 Admin: manage workers' qualifications (grant/revoke, with obtained date)
 - [ ] 💻 Admin: approve/reject pending self-reported qualifications (see Phase 4)
 - [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
