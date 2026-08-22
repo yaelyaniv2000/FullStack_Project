@@ -24,7 +24,7 @@ function parseRequirements(formData: FormData): { qualificationId: string; optio
   }));
 }
 
-export type PositionState = Result<void> | undefined;
+export type PositionState = Result<{ id: string; name: string }> | undefined;
 
 export async function createPosition(
   _prevState: PositionState,
@@ -77,7 +77,7 @@ export async function createPosition(
   }
 
   revalidatePath("/admin/positions");
-  return { success: true, data: undefined };
+  return { success: true, data: { id: position.id, name: position.name } };
 }
 
 export async function updatePosition(
@@ -131,7 +131,7 @@ export async function updatePosition(
   }
 
   revalidatePath("/admin/positions");
-  return { success: true, data: undefined };
+  return { success: true, data: { id, name: parsed.data.name } };
 }
 
 export async function deletePosition(id: string): Promise<Result<void>> {

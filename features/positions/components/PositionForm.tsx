@@ -18,10 +18,13 @@ export function PositionForm({
   position,
   allQualifications,
   onDone,
+  onCreated,
 }: {
   position?: Position;
   allQualifications: Qualification[];
   onDone?: () => void;
+  /** Fired only on a successful create (not edit), with the newly created position's id/name. */
+  onCreated?: (position: { id: string; name: string }) => void;
 }) {
   const action = position
     ? updatePosition.bind(null, position.id)
@@ -37,9 +40,10 @@ export function PositionForm({
   useEffect(() => {
     if (state?.success) {
       onDone?.();
+      if (!position && state.data) onCreated?.(state.data);
       setResetKey((k) => k + 1);
     }
-  }, [state, onDone]);
+  }, [state, onDone, onCreated, position]);
 
   // A qualification that never expires (renewal_interval_days null) has nothing to renew --
   // only offer expiring qualifications in the "renews" picker.

@@ -138,11 +138,40 @@ is yours to edit freely.
       headcount, confirmed the edit form pre-fills correctly), delete, the nav link, and — reusing
       an error path that already anticipated this — confirmed a position still referenced by a
       template can't be deleted (`on delete restrict`, existing Hebrew message). No console errors.
-- [ ] 💻 Admin: create/edit/delete shifts (date/time, location, required positions & headcount) —
-      optionally starting from a template (copies its values in, no live link) and adjusting.
-      **UX note from user (2026-08-22)**: when picking positions for a shift, allow choosing an
-      existing position OR creating a new one inline via a popup/modal (same form as
-      `/admin/positions`), rather than forcing a detour to the positions page.
+- [X] 💻 Admin: create/edit/delete shifts (date/time, location, required positions & headcount) —
+      `/admin/shifts`, added to the admin nav. Optionally starts from a template: picking one in
+      a `Select` pre-fills `ShiftPositionsPicker` (values copied in, no live link to the
+      template). **UX note from user (2026-08-22)** implemented: the picker's "תפקיד חדש" button
+      opens the real `PositionForm` in a `Dialog`, so admins never need to detour to
+      `/admin/positions` — required extending `createPosition` to return the created
+      `{id, name}` (was `Result<void>`) and adding an `onCreated` hook to `PositionForm`, both
+      additive/backward-compatible. `deleteShift` blocks deletion once `published_at` is set (no
+      publish flow exists yet, so unreachable today, but matches `docs/technical-plan.md`'s
+      documented signature and costs nothing to add now).
+
+      **Three real bugs caught by testing in a browser, not just building:**
+      1. `listShifts()`'s embed (`shifts → shift_positions → positions`) was ambiguous to
+         PostgREST — the `assignments` table has FKs matching the same shape at both levels
+         (`shift_id` and `(shift_id, position_id)`), so it silently offered a second join path.
+         Fixed with explicit `!shift_positions_shift_id_fkey` / `!shift_positions_position_id_fkey`
+         hints. Symptom was sneaky: the insert succeeded (confirmed directly in the DB), the
+         create form showed no error, but the list stayed empty — cost real time to trace back to
+         the query rather than the mutation.
+      2. Same Base UI `Select` "needs `items` prop for the label, not just the raw value"
+         issue as `GrantQualificationForm` — hit again in the template-picker `Select` here.
+         Two occurrences now — worth remembering as a standing rule for *any* new controlled
+         `Select` in this codebase, not a one-off.
+      3. The inline-create dialog's `onCreated` could fire more than once (React Strict Mode's
+         dev-mode double-invoke of effects), adding the same position twice to picker state with
+         a duplicate `key` — and per React's own docs, a duplicate key can make reconciliation
+         *silently drop* unrelated children, which is exactly what happened: the whole positions
+         list (including the pre-filled ones) vanished from the submitted form, not just the
+         duplicate. Fixed by making the handler idempotent (`prev.some(id) ? prev : [...prev, x]`)
+         rather than trying to prevent the double-fire itself.
+
+      Verified end-to-end after all three fixes: create from template, inline-create a new
+      position mid-edit (chip appears, persists after save), headcount edits, the
+      end-before-start validation message, delete — no console errors on a clean run.
 - [ ] 💻 Admin: open an availability request window for an upcoming period
 - [ ] 💻 Seed placeholder positions/qualifications for development — replace with the squadron's
       real ones whenever that info arrives, no code changes needed
