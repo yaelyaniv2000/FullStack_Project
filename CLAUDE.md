@@ -180,6 +180,18 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
   building real email invites now (an easy, isolated addition later — swap one function, nothing
   else changes, see the auth conversation in project history for the full reasoning).
 
+## Deployment gotchas
+
+- **Git commit author email must match a verified email on the `yaelyaniv2000` GitHub account,**
+  or Vercel silently blocks the deployment (Hobby plan doesn't allow "outside collaborator"
+  commits on a private repo — status shows as "Deployment was blocked," not a build failure).
+  Hit this exactly once: local git was configured with a university email not verified on that
+  GitHub account. Fixed by setting `git config --global user.email yaelyaniv23@gmail.com`. If a
+  deployment mysteriously never updates the live URL despite a clean push, check
+  `gh api repos/yaelyaniv2000/FullStack_Project/commits/<sha>/status` before assuming a build
+  error — an `x-vercel-cache: HIT` with a large `age` on the live URL is the tell that the old
+  deployment is still being served, not the new one.
+
 ## Where things live
 
 - `docs/product-spec.md` — the business-facing product spec (course deliverable #2). Has open
