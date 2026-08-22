@@ -12,9 +12,17 @@ export default async function AdminLayout({
   return (
     <div className="mx-auto max-w-3xl p-6">
       <nav className="mb-6 flex items-center justify-between border-b pb-4">
-        <Link href="/dashboard" className="underline">
-          חזרה לדשבורד
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/dashboard" className="underline">
+            דשבורד
+          </Link>
+          <Link href="/admin/qualifications" className="underline">
+            כשירויות
+          </Link>
+          <Link href="/admin/personnel" className="underline">
+            אנשי צוות
+          </Link>
+        </div>
         <form action={logout}>
           <Button type="submit" variant="outline" size="sm">
             התנתקות

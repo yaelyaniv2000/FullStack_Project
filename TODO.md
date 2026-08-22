@@ -73,7 +73,11 @@ is yours to edit freely.
 > Note: the basic personnel page (create a worker account, see the list) already exists from
 > Phase 2 step 4 — the items below extend it (qualifications) rather than starting from scratch.
 
-- [ ] 💻 Admin: manage qualifications (name + optional renewal interval)
+- [X] 💻 Admin: manage qualifications (name + optional renewal interval) — `/admin/qualifications`,
+      one shared form for create/edit. Verified in a real browser: create, duplicate-name
+      rejection, edit, delete, all confirmed against actual DB state (not just UI text). Minor
+      known issue: a harmless Base UI dev-console warning about defaultValue on the shared form —
+      functionally fine, not worth chasing further right now.
 - [ ] 💻 Admin: manage position types — which qualifications each requires, and (optionally)
       which qualification the position renews when fulfilled
 - [ ] 💻 Admin: manage workers' qualifications (grant/revoke, with obtained date)
