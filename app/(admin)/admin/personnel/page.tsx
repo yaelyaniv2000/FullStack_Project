@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CreateWorkerForm } from "@/features/accounts/components/CreateWorkerForm";
 import { listWorkers } from "@/features/accounts/queries";
@@ -29,7 +30,9 @@ export default async function PersonnelPage() {
             <ul className="flex flex-col gap-2">
               {workers.map((worker) => (
                 <li key={worker.id} className="text-sm">
-                  {worker.full_name}
+                  <Link href={`/admin/personnel/${worker.id}`} className="hover:underline">
+                    {worker.full_name}
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -107,7 +107,19 @@ is yours to edit freely.
       the full flow in a real browser: option-having + binary qualifications both added
       correctly, renews list correctly skips the option step, edit removes a requirement, delete
       — all with no console errors.
-- [ ] 💻 Admin: manage workers' qualifications (grant/revoke, with obtained date)
+- [X] 💻 Admin: manage workers' qualifications (grant/revoke, with obtained date) —
+      `/admin/personnel/[workerId]`, linked from the personnel list. `GrantQualificationForm`
+      reuses the searchable-combobox pattern from positions, with the same "pick an option if the
+      qualification has one" follow-up step. Revoke is a status update to `rejected`, not a
+      delete (matches `docs/technical-plan.md`) — history stays queryable, and re-granting after
+      a revoke correctly creates a new row alongside it (allowed by the partial unique index).
+      `expires_on` is currently a simplified `obtained_at + renewal_interval_days` read, not yet
+      folding in shift-based renewal since shifts/assignments don't exist yet (Phase 5) — revisit
+      then. Verified in a real browser: grant with an option, grant binary + renewal (expiry math
+      correct), duplicate-grant prevention, revoke, and re-grant-after-revoke — no console errors.
+      One real bug caught this way: Base UI's `Select` needs an `items` prop to render the
+      selected item's *label* instead of its raw value when controlled externally (`value=`) —
+      fixed in `GrantQualificationForm`.
 - [ ] 💻 Admin: approve/reject pending self-reported qualifications (see Phase 4)
 - [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
       qualification approvals, upcoming shifts, qualifications expiring soon
