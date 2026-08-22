@@ -83,7 +83,7 @@ export function ShiftForm({
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="date">תאריך</Label>
-        <Input id="date" name="date" type="date" defaultValue={shift?.date} required />
+        <Input id="date" name="date" type="date" dir="ltr" defaultValue={shift?.date} required />
       </div>
       <div className="flex gap-4">
         <div className="flex flex-1 flex-col gap-2">
@@ -92,13 +92,21 @@ export function ShiftForm({
             id="startTime"
             name="startTime"
             type="time"
+            dir="ltr"
             defaultValue={shift?.startTime}
             required
           />
         </div>
         <div className="flex flex-1 flex-col gap-2">
           <Label htmlFor="endTime">שעת סיום</Label>
-          <Input id="endTime" name="endTime" type="time" defaultValue={shift?.endTime} required />
+          <Input
+            id="endTime"
+            name="endTime"
+            type="time"
+            dir="ltr"
+            defaultValue={shift?.endTime}
+            required
+          />
         </div>
       </div>
       <div className="flex flex-col gap-2">

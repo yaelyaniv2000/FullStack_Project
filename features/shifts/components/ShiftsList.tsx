@@ -52,7 +52,7 @@ export function ShiftsList({
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium">
+                    <span className="font-medium" dir="ltr">
                       {s.date} · {s.startTime.slice(0, 5)}–{s.endTime.slice(0, 5)}
                     </span>
                     {s.location ? (

@@ -74,8 +74,15 @@ export function WorkerQualificationsList({
                   ) : null}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  התקבל: {q.obtainedAt}
-                  {q.expiresOn ? ` · בתוקף עד: ${q.expiresOn}` : " · אינה פגה"}
+                  התקבל: <span dir="ltr">{q.obtainedAt}</span>
+                  {q.expiresOn ? (
+                    <>
+                      {" "}
+                      · בתוקף עד: <span dir="ltr">{q.expiresOn}</span>
+                    </>
+                  ) : (
+                    " · אינה פגה"
+                  )}
                 </p>
               </div>
               {q.status === "approved" ? (

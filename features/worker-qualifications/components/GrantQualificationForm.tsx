@@ -139,6 +139,7 @@ export function GrantQualificationForm({
           id="obtainedAt"
           name="obtainedAt"
           type="date"
+          dir="ltr"
           defaultValue={todayIsoDate()}
           required
         />

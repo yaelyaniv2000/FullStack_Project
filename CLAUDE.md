@@ -140,6 +140,18 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
   instead of physical (`ml-`/`mr-`/`left`/`right`) ones. The ongoing cost isn't technical setup —
   it's discipline: write all UI copy in Hebrew, and use logical utilities in any hand-written
   (non-shadcn-generated) layout code, since physical-direction classes silently break under RTL.
+  **Concrete proof this matters, date/time edition**: any date or time *value* (not label) needs
+  an explicit `dir="ltr"` — under `dir="rtl"`, the Unicode bidi algorithm visually reorders
+  colon-/dash-separated numeric segments (e.g. `12:30` rendered as `30:12`, `08:00–16:00` as
+  `16:00–08:00`), even though the underlying string/DOM text is correct — `.innerText()` in a
+  test won't catch this, only an actual screenshot will, since it's a *visual* reordering, not a
+  text-content change. Hit this on `/admin/shifts` (both the `<input type="date/time">` fields
+  and the list's date/time display) and `worker-qualifications`' obtained/expiry dates — fixed by
+  adding `dir="ltr"` to every date/time `<Input>` and wrapping every rendered date/time value in
+  `<span dir="ltr">`. **Rule going forward**: any new date or time value, input or displayed, gets
+  `dir="ltr"` — this will keep recurring (availability windows, worker's shift view, dashboard
+  upcoming-shifts widget) since it's inherent to mixing LTR-formatted data into RTL flow, not a
+  one-off bug.
 - **Responsive design is built in from day one, not retrofitted.** Tailwind's mobile-first
   utilities + shadcn/ui's responsive components make this close to free. Worker-facing pages are
   mobile-first (checking a shift is a quick phone interaction); admin pages (esp. schedule
