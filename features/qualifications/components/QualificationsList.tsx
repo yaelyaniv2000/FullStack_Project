@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { QualificationForm } from "./QualificationForm";
 import { deleteQualification } from "@/features/qualifications/actions";
 import type { Qualification } from "@/features/qualifications/queries";
@@ -34,13 +35,22 @@ export function QualificationsList({
               <QualificationForm qualification={q} onDone={() => setEditingId(null)} />
             ) : (
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex flex-col gap-2">
                   <p className="font-medium">{q.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {q.renewal_interval_days
                       ? `מתחדשת כל ${q.renewal_interval_days} ימים`
                       : "לא פגה"}
                   </p>
+                  {q.options.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {q.options.map((opt) => (
+                        <Badge key={opt.id} variant="secondary">
+                          {opt.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => setEditingId(q.id)}>

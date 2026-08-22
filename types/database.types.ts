@@ -303,6 +303,38 @@ export type Database = {
         }
         Relationships: []
       }
+      qualification_options: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          qualification_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          qualification_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          qualification_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualification_options_qualification_id_fkey"
+            columns: ["qualification_id"]
+            isOneToOne: false
+            referencedRelation: "qualifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       qualifications: {
         Row: {
           created_at: string
@@ -454,6 +486,7 @@ export type Database = {
           created_at: string
           id: string
           obtained_at: string
+          option_id: string | null
           qualification_id: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -465,6 +498,7 @@ export type Database = {
           created_at?: string
           id?: string
           obtained_at: string
+          option_id?: string | null
           qualification_id: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -476,6 +510,7 @@ export type Database = {
           created_at?: string
           id?: string
           obtained_at?: string
+          option_id?: string | null
           qualification_id?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -484,6 +519,13 @@ export type Database = {
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "worker_qualifications_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "qualification_options"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "worker_qualifications_qualification_id_fkey"
             columns: ["qualification_id"]

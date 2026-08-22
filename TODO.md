@@ -78,6 +78,19 @@ is yours to edit freely.
       rejection, edit, delete, all confirmed against actual DB state (not just UI text). Minor
       known issue: a harmless Base UI dev-console warning about defaultValue on the shared form —
       functionally fine, not worth chasing further right now.
+- [X] 💻 Qualification options (2026-08-22, user feedback): a qualification can optionally define
+      a fixed set of selectable values (e.g. "Seniority" → "Junior"/"Permanent"/"Professional");
+      workers will pick one when it has options. New `qualification_options` table +
+      `worker_qualifications.option_id`, enforced by a DB trigger (not just app code) — verified
+      all 3 rules directly against real inserts before building any UI on top. Qualifications
+      form/list updated to add/edit/remove options and display them as badges.
+- [X] 💻 App identity + shared header (2026-08-22, user feedback): named the app "המשבצת"
+      (updated in `docs/product-spec.md`); built one shared, sticky `<AppHeader>`
+      (`components/shared/AppHeader.tsx`) with a hamburger-triggered menu (shadcn `Sheet`),
+      replacing the plain nav links and the original two-separate-nav-components plan — both
+      `/admin/*` and `/dashboard` now use it. Verified in a real browser (menu opens, navigates
+      correctly); one false alarm along the way — a screenshot taken mid-animation looked broken
+      but a slightly longer wait showed it rendering correctly.
 - [ ] 💻 Admin: manage position types — which qualifications each requires, and (optionally)
       which qualification the position renews when fulfilled
 - [ ] 💻 Admin: manage workers' qualifications (grant/revoke, with obtained date)

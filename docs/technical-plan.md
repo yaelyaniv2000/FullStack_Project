@@ -92,8 +92,10 @@ tables — pages call into it, never query/write Supabase directly for another d
 
 ## מבנה הקומפוננטות המרכזיות (Core components)
 
-- **Layout/shell**: `<AdminNav>`, `<WorkerNav>` — role-specific navigation, rendered by the
-  respective `(admin)`/`(worker)` layout.
+- **Layout/shell**: `<AppHeader>` (`components/shared/AppHeader.tsx`) — **built**, refined from
+  the original plan of two separate `<AdminNav>`/`<WorkerNav>` components into one shared, sticky
+  header (app title "המשבצת" + a hamburger-triggered `Sheet` menu) that both `(admin)` and (later)
+  `(worker)` layouts pass their own `links` prop into, rather than duplicating the header itself.
 - **Status display**: `<QualificationBadge>` (color-coded: approved / pending / expiring soon /
   expired), `<ShiftStatusBadge>` (open / understaffed / published).
 - **Dashboard widgets**: `<PriorityAlerts>` (understaffed shifts + pending approvals),
@@ -144,6 +146,16 @@ position_renews_qualifications    -- quals a position renews (many-to-many, see 
   qualification_id  uuid references qualifications(id) on delete cascade
   primary key (position_id, qualification_id)
 
+-- Added 2026-08-22: a qualification can optionally define a fixed set of selectable values
+-- (e.g. "Seniority" -> "Junior"/"Permanent"/"Professional"). Zero options = stays purely binary.
+qualification_options
+  id                uuid PK
+  qualification_id  uuid        not null references qualifications(id) on delete cascade
+  label             text        not null
+  sort_order        integer     not null default 0
+  created_at        timestamptz not null default now()
+  unique (qualification_id, label)
+
 worker_qualifications
   id                uuid PK
   worker_id         uuid references profiles(id) on delete cascade
@@ -151,12 +163,16 @@ worker_qualifications
   source            text        not null check (source in ('self_reported','admin_granted'))
   status            text        not null default 'pending' check (status in ('pending','approved','rejected'))
   obtained_at       date        not null
+  option_id         uuid        null references qualification_options(id) on delete restrict
   reviewed_by       uuid        references profiles(id) null
   reviewed_at       timestamptz null
   created_at        timestamptz not null default now()
   -- partial unique index: at most one non-rejected entry per (worker, qualification) —
   -- prevents duplicate pending/approved rows, while still allowing re-reporting after a rejection
   unique (worker_id, qualification_id) where (status <> 'rejected')
+  -- enforced by a trigger (not just app code): option_id must be set iff the qualification
+  -- defines options, and must belong to that qualification -- see the migration for the exact
+  -- check; this is real business logic living at the database layer, not just the UI.
 
 shift_templates
   id          uuid PK

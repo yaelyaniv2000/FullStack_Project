@@ -6,7 +6,8 @@
 > **not** need to be resolved before starting to build.
 
 ## שם עבודה (working name)
-TBD — placeholder for now (e.g., "ShiftMatch"). Rename once settled.
+**המשבצת** — chosen 2026-08-22 (a fitting pun: a schedule is literally a grid of slots). Used as
+the app's title in the UI (`components/shared/AppHeader.tsx`).
 
 ## מה הבעיה שהמוצר פותר
 A single organization (a squadron) needs to staff shifts/duties with personnel who hold the

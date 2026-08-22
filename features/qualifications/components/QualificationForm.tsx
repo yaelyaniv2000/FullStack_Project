@@ -10,6 +10,7 @@ import {
   type QualificationState,
 } from "@/features/qualifications/actions";
 import type { Qualification } from "@/features/qualifications/queries";
+import { QualificationOptionsEditor } from "./QualificationOptionsEditor";
 
 /** Reused for both create and edit -- edit mode is just "a qualification was passed in." */
 export function QualificationForm({
@@ -47,6 +48,7 @@ export function QualificationForm({
           defaultValue={qualification?.renewal_interval_days ?? ""}
         />
       </div>
+      <QualificationOptionsEditor initialOptions={qualification?.options} />
       {state && !state.success ? (
         <p className="text-sm text-destructive">{state.error}</p>
       ) : null}
