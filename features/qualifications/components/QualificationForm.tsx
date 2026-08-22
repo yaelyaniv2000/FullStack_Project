@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,9 +27,16 @@ export function QualificationForm({
     action,
     undefined,
   );
+  // Bumped on every successful submit to force QualificationOptionsEditor to remount --
+  // it holds its own local state (the dynamic options list), which a native form reset
+  // (React 19's automatic behavior for uncontrolled fields like `name`) has no effect on.
+  const [optionsResetKey, setOptionsResetKey] = useState(0);
 
   useEffect(() => {
-    if (state?.success) onDone?.();
+    if (state?.success) {
+      onDone?.();
+      setOptionsResetKey((k) => k + 1);
+    }
   }, [state, onDone]);
 
   return (
@@ -48,7 +55,10 @@ export function QualificationForm({
           defaultValue={qualification?.renewal_interval_days ?? ""}
         />
       </div>
-      <QualificationOptionsEditor initialOptions={qualification?.options} />
+      <QualificationOptionsEditor
+        key={optionsResetKey}
+        initialOptions={qualification?.options}
+      />
       {state && !state.success ? (
         <p className="text-sm text-destructive">{state.error}</p>
       ) : null}
