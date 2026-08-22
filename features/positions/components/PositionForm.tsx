@@ -9,8 +9,9 @@ import {
   updatePosition,
   type PositionState,
 } from "@/features/positions/actions";
-import type { Position, QualificationRef } from "@/features/positions/queries";
-import { QualificationCheckboxList } from "./QualificationCheckboxList";
+import type { Position } from "@/features/positions/queries";
+import type { Qualification } from "@/features/qualifications/queries";
+import { QualificationMultiPicker } from "./QualificationMultiPicker";
 
 /** Reused for both create and edit -- edit mode is just "a position was passed in." */
 export function PositionForm({
@@ -19,7 +20,7 @@ export function PositionForm({
   onDone,
 }: {
   position?: Position;
-  allQualifications: QualificationRef[];
+  allQualifications: Qualification[];
   onDone?: () => void;
 }) {
   const action = position
@@ -29,9 +30,8 @@ export function PositionForm({
     action,
     undefined,
   );
-  // Same reasoning as QualificationForm: forces the checkbox lists to remount and clear
-  // after a successful create, since their selection state is local, not tied to native
-  // form reset.
+  // Same reasoning as QualificationForm: forces the pickers to remount and clear after a
+  // successful create, since their selection state is local, not tied to native form reset.
   const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
@@ -47,19 +47,33 @@ export function PositionForm({
         <Label htmlFor="name">שם התפקיד</Label>
         <Input id="name" name="name" defaultValue={position?.name} required />
       </div>
-      <QualificationCheckboxList
+      <QualificationMultiPicker
         key={`required-${resetKey}`}
-        name="requiredQualificationId"
+        qualificationFieldName="requiredQualificationId"
+        optionFieldName="requiredOptionId"
         label="כשירויות נדרשות"
         allQualifications={allQualifications}
-        initiallySelectedIds={position?.requiredQualifications.map((q) => q.id)}
+        allowOptionSelection
+        initialSelected={position?.requiredQualifications.map((r) => ({
+          qualificationId: r.qualificationId,
+          qualificationName: r.qualificationName,
+          optionId: r.optionId,
+          optionLabel: r.optionLabel,
+        }))}
       />
-      <QualificationCheckboxList
+      <QualificationMultiPicker
         key={`renews-${resetKey}`}
-        name="renewsQualificationId"
+        qualificationFieldName="renewsQualificationId"
+        optionFieldName="renewsOptionId__unused"
         label="כשירויות שהתפקיד מחדש (אופציונלי)"
         allQualifications={allQualifications}
-        initiallySelectedIds={position?.renewsQualifications.map((q) => q.id)}
+        allowOptionSelection={false}
+        initialSelected={position?.renewsQualifications.map((q) => ({
+          qualificationId: q.id,
+          qualificationName: q.name,
+          optionId: null,
+          optionLabel: null,
+        }))}
       />
       {state && !state.success ? (
         <p className="text-sm text-destructive">{state.error}</p>

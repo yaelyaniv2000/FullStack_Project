@@ -97,13 +97,26 @@ is yours to edit freely.
       nav-links list (was copy-pasted into two files) into `components/shared/nav-links.ts`
       before adding a third copy. Verified in a real browser: create with both required + renews
       set, edit (add another required qualification), delete — all confirmed, no console errors.
+- [X] 💻 Required qualifications can target a specific option (2026-08-22, user feedback): e.g.
+      "requires Seniority = Permanent," not just "requires Seniority." Added
+      `position_qualifications.option_id` + a DB trigger mirroring the worker_qualifications one
+      (verified against 4 scenarios before touching any UI). Replaced the checkbox multi-selects
+      with `QualificationMultiPicker` — a dropdown that adds removable chips, opening a follow-up
+      option-picker only for the "required" list and only when the chosen qualification has
+      options ("renews" stays as a plain add, per user confirmation — see CLAUDE.md). Verified
+      the full flow in a real browser: option-having + binary qualifications both added
+      correctly, renews list correctly skips the option step, edit removes a requirement, delete
+      — all with no console errors.
 - [ ] 💻 Admin: manage workers' qualifications (grant/revoke, with obtained date)
 - [ ] 💻 Admin: approve/reject pending self-reported qualifications (see Phase 4)
 - [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
       qualification approvals, upcoming shifts, qualifications expiring soon
 - [ ] 💻 Admin: create/edit/delete shift templates (named bundle of positions + headcount)
 - [ ] 💻 Admin: create/edit/delete shifts (date/time, location, required positions & headcount) —
-      optionally starting from a template (copies its values in, no live link) and adjusting
+      optionally starting from a template (copies its values in, no live link) and adjusting.
+      **UX note from user (2026-08-22)**: when picking positions for a shift, allow choosing an
+      existing position OR creating a new one inline via a popup/modal (same form as
+      `/admin/positions`), rather than forcing a detour to the positions page.
 - [ ] 💻 Admin: open an availability request window for an upcoming period
 - [ ] 💻 Seed placeholder positions/qualifications for development — replace with the squadron's
       real ones whenever that info arrives, no code changes needed

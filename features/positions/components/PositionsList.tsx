@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PositionForm } from "./PositionForm";
 import { deletePosition } from "@/features/positions/actions";
-import type { Position, QualificationRef } from "@/features/positions/queries";
+import type { Position } from "@/features/positions/queries";
+import type { Qualification } from "@/features/qualifications/queries";
 
 export function PositionsList({
   positions,
   allQualifications,
 }: {
   positions: Position[];
-  allQualifications: QualificationRef[];
+  allQualifications: Qualification[];
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -49,9 +50,10 @@ export function PositionsList({
                       {p.requiredQualifications.length === 0 ? (
                         <span>—</span>
                       ) : (
-                        p.requiredQualifications.map((q) => (
-                          <Badge key={q.id} variant="secondary">
-                            {q.name}
+                        p.requiredQualifications.map((r) => (
+                          <Badge key={r.qualificationId} variant="secondary">
+                            {r.qualificationName}
+                            {r.optionLabel ? `: ${r.optionLabel}` : ""}
                           </Badge>
                         ))
                       )}

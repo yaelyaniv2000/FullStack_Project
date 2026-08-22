@@ -206,18 +206,28 @@ export type Database = {
       }
       position_qualifications: {
         Row: {
+          option_id: string | null
           position_id: string
           qualification_id: string
         }
         Insert: {
+          option_id?: string | null
           position_id: string
           qualification_id: string
         }
         Update: {
+          option_id?: string | null
           position_id?: string
           qualification_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "position_qualifications_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "qualification_options"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "position_qualifications_position_id_fkey"
             columns: ["position_id"]

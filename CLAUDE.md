@@ -63,6 +63,17 @@ built for this single real organization, not as a generic multi-business platfor
   than one qualification.** A position (e.g., "medic") can be marked as renewing one or more
   qualifications when fulfilled (`position_renews_qualifications`, many-to-many, mirroring
   `position_qualifications`); that applies wherever that position appears across any shift.
+- **A qualification can optionally define a fixed set of selectable values** (`qualification_options`
+  -- e.g. "Seniority" → "Junior"/"Permanent"/"Professional"), and both `worker_qualifications` and
+  `position_qualifications` got a nullable `option_id` accordingly (2026-08-22, user feedback --
+  closes the loop on the very first project brainstorm: "a qualification could be a rank"). Each
+  is enforced by its own DB trigger, not just app code: required iff the qualification has
+  options, must belong to that qualification. **`position_renews_qualifications` deliberately does
+  NOT get an `option_id`** -- renewing extends whatever option a worker already holds; it doesn't
+  target one (that would be a promotion process, not a renewal). The admin-facing picker for this
+  (`features/positions/components/QualificationMultiPicker.tsx`) is a dropdown that adds chips,
+  with the option-picking sub-step only appearing for "required" (not "renews") and only when the
+  chosen qualification actually has options.
 - **Shift templates copy into a shift at creation time; no live link.** A template is a named,
   reusable bundle of position requirements the admin can pick from instead of building a shift's
   requirements from scratch each time. Editing/deleting a template afterward never changes shifts

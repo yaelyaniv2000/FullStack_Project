@@ -14,6 +14,16 @@ function parseIds(formData: FormData, fieldName: string): string[] {
   return formData.getAll(fieldName).map(String);
 }
 
+/** Zips the parallel requiredQualificationId[]/requiredOptionId[] fields back into pairs. */
+function parseRequirements(formData: FormData): { qualificationId: string; optionId: string | null }[] {
+  const qualIds = formData.getAll("requiredQualificationId").map(String);
+  const optionIds = formData.getAll("requiredOptionId").map(String);
+  return qualIds.map((qualificationId, i) => ({
+    qualificationId,
+    optionId: optionIds[i] || null,
+  }));
+}
+
 export type PositionState = Result<void> | undefined;
 
 export async function createPosition(
@@ -26,7 +36,7 @@ export async function createPosition(
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0].message };
   }
-  const requiredIds = parseIds(formData, "requiredQualificationId");
+  const requirements = parseRequirements(formData);
   const renewsIds = parseIds(formData, "renewsQualificationId");
 
   const supabase = await createClient();
@@ -42,10 +52,14 @@ export async function createPosition(
     };
   }
 
-  if (requiredIds.length > 0) {
-    const { error: reqError } = await supabase
-      .from("position_qualifications")
-      .insert(requiredIds.map((qid) => ({ position_id: position.id, qualification_id: qid })));
+  if (requirements.length > 0) {
+    const { error: reqError } = await supabase.from("position_qualifications").insert(
+      requirements.map((r) => ({
+        position_id: position.id,
+        qualification_id: r.qualificationId,
+        option_id: r.optionId,
+      })),
+    );
     if (reqError) {
       await supabase.from("positions").delete().eq("id", position.id);
       return { success: false, error: "שגיאה בשיוך כשירויות נדרשות" };
@@ -77,7 +91,7 @@ export async function updatePosition(
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0].message };
   }
-  const requiredIds = parseIds(formData, "requiredQualificationId");
+  const requirements = parseRequirements(formData);
   const renewsIds = parseIds(formData, "renewsQualificationId");
 
   const supabase = await createClient();
@@ -96,10 +110,17 @@ export async function updatePosition(
   // (unlike qualification_options, which worker_qualifications.option_id points at), so a
   // clean delete-then-reinsert is safe and much simpler than a diff.
   await supabase.from("position_qualifications").delete().eq("position_id", id);
-  if (requiredIds.length > 0) {
-    await supabase
-      .from("position_qualifications")
-      .insert(requiredIds.map((qid) => ({ position_id: id, qualification_id: qid })));
+  if (requirements.length > 0) {
+    const { error: reqError } = await supabase.from("position_qualifications").insert(
+      requirements.map((r) => ({
+        position_id: id,
+        qualification_id: r.qualificationId,
+        option_id: r.optionId,
+      })),
+    );
+    if (reqError) {
+      return { success: false, error: "שגיאה בעדכון כשירויות נדרשות" };
+    }
   }
 
   await supabase.from("position_renews_qualifications").delete().eq("position_id", id);

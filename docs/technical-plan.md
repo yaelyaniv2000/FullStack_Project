@@ -139,7 +139,13 @@ positions
 position_qualifications           -- required quals per position
   position_id       uuid references positions(id) on delete cascade
   qualification_id  uuid references qualifications(id) on delete cascade
+  option_id         uuid null references qualification_options(id) on delete restrict
   primary key (position_id, qualification_id)
+  -- Added 2026-08-22: a requirement can target a specific option (e.g. "requires Seniority =
+  -- Permanent"), enforced by the same kind of trigger as worker_qualifications.option_id
+  -- (required iff the qualification has options, must belong to it). Deliberately NOT added to
+  -- position_renews_qualifications -- renewing extends whatever option a worker already holds,
+  -- it doesn't target one (that would be a promotion process, not a renewal).
 
 position_renews_qualifications    -- quals a position renews (many-to-many, see CLAUDE.md)
   position_id       uuid references positions(id) on delete cascade
