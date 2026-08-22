@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getWorker } from "@/features/accounts/queries";
 import { listQualifications } from "@/features/qualifications/queries";
@@ -25,6 +27,13 @@ export default async function WorkerDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <Link
+        href="/admin/personnel"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground w-fit"
+      >
+        <ArrowRight className="size-4" />
+        חזרה לרשימת העובדים
+      </Link>
       <h1 className="text-2xl font-bold">{worker.full_name}</h1>
 
       <Card>
