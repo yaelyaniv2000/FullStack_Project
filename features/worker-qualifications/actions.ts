@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireWorker } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
 
@@ -11,6 +11,11 @@ const grantSchema = z.object({
   optionId: z.string().nullable(),
   obtainedAt: z.string().min(1, "נא לבחור תאריך"),
 });
+
+const selfReportSchema = grantSchema.refine(
+  (v) => v.obtainedAt <= new Date().toISOString().slice(0, 10),
+  { message: "תאריך הקבלה לא יכול להיות בעתיד", path: ["obtainedAt"] },
+);
 
 export type GrantQualificationState = Result<void> | undefined;
 
@@ -76,6 +81,52 @@ async function updateQualificationStatus(
   }
 
   revalidatePath(`/admin/personnel/${workerId}`);
+  return { success: true, data: undefined };
+}
+
+export type SelfReportState = Result<void> | undefined;
+
+/** Worker reports their own qualification; stays pending until an admin approves it
+ * (reviewQualification below). Matches the RLS insert policy exactly: worker_id = auth.uid(),
+ * source = 'self_reported', status = 'pending' -- the DB enforces this too, not just this action. */
+export async function selfReportQualification(
+  _prevState: SelfReportState,
+  formData: FormData,
+): Promise<SelfReportState> {
+  const worker = await requireWorker();
+
+  const rawOptionId = String(formData.get("optionId") ?? "");
+  const parsed = selfReportSchema.safeParse({
+    qualificationId: formData.get("qualificationId"),
+    optionId: rawOptionId || null,
+    obtainedAt: formData.get("obtainedAt"),
+  });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("worker_qualifications").insert({
+    worker_id: worker.id,
+    qualification_id: parsed.data.qualificationId,
+    option_id: parsed.data.optionId,
+    source: "self_reported",
+    status: "pending",
+    obtained_at: parsed.data.obtainedAt,
+  });
+  if (error) {
+    return {
+      success: false,
+      error:
+        error.code === "23505"
+          ? "כבר דיווחת על כשירות זו"
+          : error.code === "P0001"
+            ? "בחירת האפשרות אינה תואמת לכשירות שנבחרה"
+            : "שגיאה בדיווח הכשירות",
+    };
+  }
+
+  revalidatePath("/my-qualifications");
   return { success: true, data: undefined };
 }
 

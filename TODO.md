@@ -237,7 +237,17 @@ is yours to edit freely.
       real browser as the actual worker account: qualification displays correctly with status +
       expiry, and confirmed `requireAdmin()` still correctly bounces a worker session away from
       `/admin/positions` back to `/dashboard` — no console errors.
-- [ ] 💻 Worker: self-report a qualification (status: pending until admin approves)
+- [X] 💻 Worker: self-report a qualification (status: pending until admin approves) — extends
+      `/my-qualifications` with `SelfReportQualificationForm`, the same picker+option+date shape
+      as the admin's `GrantQualificationForm` but kept as a separate component (no workerId param,
+      obtained date can't be in the future, lands as `pending` not `approved`). New
+      `selfReportQualification` action mirrors the RLS insert policy exactly (`worker_id =
+      auth.uid()`, `source = 'self_reported'`, `status = 'pending'`) — the DB enforces it too, not
+      just the action. Verified the full loop in a real browser: worker self-reports with an
+      option → shows as `ממתין לאישור`, already-held exclusion blocks re-reporting the same one,
+      admin's worker-detail page shows the `דווח על ידי העובד/ת` badge and אישור/דחייה buttons
+      (built in the earlier approve/reject work), approving it flips the worker's own view to
+      `מאושר` — no console errors.
 - [ ] 💻 Worker: submit availability for the open request window
 - [ ] 💻 Worker: view their published upcoming shifts
 
