@@ -206,12 +206,26 @@ is yours to edit freely.
       everything built up this session (test accounts, all positions/qualifications/shifts).
       User confirmed: skip that for now, verify the real reset flow later when writing the
       local-run-instructions README deliverable, since that needs testing anyway.
-- [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
-      qualification approvals, upcoming shifts, qualifications expiring soon. **Ordering note
-      (2026-08-22)**: deliberately built last in Phase 3, after shift templates/shifts/
-      availability exist — two of its four widgets (understaffed shifts, upcoming shifts) need
-      the shifts data model, so building it earlier would mean half the page has nothing real to
-      query/verify against.
+- [X] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
+      qualification approvals, upcoming shifts, qualifications expiring soon. Built last in Phase
+      3 as planned (see the ordering note this replaced). `features/dashboard/` holds only the
+      `<AdminDashboard>` composition component — no queries/actions of its own; each widget calls
+      a new query added to its actual owning domain (`listUnderstaffedShifts`/`listUpcomingShifts`
+      in `features/shifts/queries.ts`, `listPendingApprovals`/`listExpiringQualifications` in
+      `features/worker-qualifications/queries.ts`), keeping one data-access layer per entity.
+      `listUnderstaffedShifts` left-joins `assignments` (always empty today, Phase 5 not built) —
+      correctly shows every upcoming shift with unmet requirements right now, and will start
+      reflecting real staffing automatically once assignments exist, no rework needed.
+      `EXPIRING_SOON_DAYS = 30` is a placeholder for the still-unresolved product-spec.md open
+      question on the real threshold. Two more `profiles` embeds needed the same explicit-FK-hint
+      treatment as before (`worker_qualifications` has both `worker_id` and `reviewed_by`
+      referencing `profiles` — same ambiguity class as the `shift_positions`/`assignments` case,
+      now four occurrences total). Verified in a real browser: all four widgets against real data,
+      seeded a pending self-report + a soon-to-expire qualification to confirm those two
+      (otherwise-empty) widgets render correctly, the "view all shifts" and worker-name links
+      navigate correctly, no console errors.
+
+**Phase 3 complete.**
 
 ## Phase 4 — Worker features
 

@@ -27,7 +27,8 @@ type Row = {
 /**
  * Simplified read of the expiry formula in docs/technical-plan.md: obtained_at plus the
  * renewal interval. Doesn't yet fold in shift-based renewal (max completed renewing-shift
- * date) since shifts/assignments don't exist yet (Phase 5) -- revisit once they do.
+ * date) since `assignments` doesn't exist yet (the scheduling engine is Phase 5) -- revisit
+ * once it does.
  */
 function computeExpiresOn(obtainedAt: string, renewalIntervalDays: number | null): string | null {
   if (renewalIntervalDays === null) return null;
@@ -58,4 +59,99 @@ export async function listWorkerQualifications(workerId: string): Promise<Worker
     obtainedAt: r.obtained_at,
     expiresOn: computeExpiresOn(r.obtained_at, r.qualifications?.renewal_interval_days ?? null),
   }));
+}
+
+export type PendingApproval = {
+  id: string;
+  workerId: string;
+  workerName: string;
+  qualificationName: string;
+  optionLabel: string | null;
+  obtainedAt: string;
+};
+
+type PendingApprovalRow = {
+  id: string;
+  worker_id: string;
+  obtained_at: string;
+  worker: { full_name: string } | null;
+  qualification: { name: string } | null;
+  option: { label: string } | null;
+};
+
+export async function listPendingApprovals(limit: number): Promise<PendingApproval[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("worker_qualifications")
+    .select(
+      `id, worker_id, obtained_at,
+      worker:profiles!worker_qualifications_worker_id_fkey(full_name),
+      qualification:qualifications(name),
+      option:qualification_options(label)`,
+    )
+    .eq("status", "pending")
+    .order("obtained_at", { ascending: true })
+    .limit(limit);
+
+  return ((data as unknown as PendingApprovalRow[]) ?? []).map((r) => ({
+    id: r.id,
+    workerId: r.worker_id,
+    workerName: r.worker?.full_name ?? "",
+    qualificationName: r.qualification?.name ?? "",
+    optionLabel: r.option?.label ?? null,
+    obtainedAt: r.obtained_at,
+  }));
+}
+
+export type ExpiringQualification = {
+  id: string;
+  workerId: string;
+  workerName: string;
+  qualificationName: string;
+  expiresOn: string;
+};
+
+type ExpiringRow = {
+  id: string;
+  worker_id: string;
+  obtained_at: string;
+  worker: { full_name: string } | null;
+  qualifications: { name: string; renewal_interval_days: number | null } | null;
+};
+
+/**
+ * "Expiring soon" threshold (days) isn't resolved yet -- open question in docs/product-spec.md.
+ * 30 is a reasonable placeholder default; revisit once the squadron gives a real answer.
+ */
+export const EXPIRING_SOON_DAYS = 30;
+
+export async function listExpiringQualifications(
+  withinDays: number,
+  limit: number,
+): Promise<ExpiringQualification[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("worker_qualifications")
+    .select(
+      `id, worker_id, obtained_at,
+      worker:profiles!worker_qualifications_worker_id_fkey(full_name),
+      qualifications(name, renewal_interval_days)`,
+    )
+    .eq("status", "approved");
+
+  const threshold = new Date();
+  threshold.setDate(threshold.getDate() + withinDays);
+  const thresholdStr = threshold.toISOString().slice(0, 10);
+
+  return ((data as unknown as ExpiringRow[]) ?? [])
+    .map((r) => ({
+      id: r.id,
+      workerId: r.worker_id,
+      workerName: r.worker?.full_name ?? "",
+      qualificationName: r.qualifications?.name ?? "",
+      expiresOn: computeExpiresOn(r.obtained_at, r.qualifications?.renewal_interval_days ?? null),
+    }))
+    .filter((r): r is ExpiringQualification & { expiresOn: string } => r.expiresOn !== null && r.expiresOn <= thresholdStr)
+    .sort((a, b) => a.expiresOn.localeCompare(b.expiresOn))
+    .slice(0, limit);
 }

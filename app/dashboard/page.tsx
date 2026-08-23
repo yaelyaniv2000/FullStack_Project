@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { logout } from "@/features/auth/actions";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ADMIN_LINKS, WORKER_LINKS } from "@/components/shared/nav-links";
+import { AdminDashboard } from "@/features/dashboard/components/AdminDashboard";
 
 export default async function DashboardPage() {
   const profile = await getCurrentUser();
@@ -19,11 +20,13 @@ export default async function DashboardPage() {
           שלום, {profile.full_name} ({profile.role === "admin" ? "מנהל" : "עובד"})
         </h1>
 
-        {profile.role !== "admin" ? (
+        {profile.role === "admin" ? (
+          <AdminDashboard />
+        ) : (
           <p className="text-muted-foreground">
             כאן יופיעו בעתיד המשמרות הקרובות שלך וסטטוס הכשירויות שלך.
           </p>
-        ) : null}
+        )}
       </div>
     </div>
   );
