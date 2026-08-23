@@ -36,3 +36,10 @@ export async function requireAdmin(): Promise<Profile> {
   if (profile.role !== "admin") redirect("/dashboard");
   return profile;
 }
+
+export async function requireWorker(): Promise<Profile> {
+  const profile = await getCurrentUser();
+  if (!profile) redirect("/login");
+  if (profile.role !== "worker") redirect("/dashboard");
+  return profile;
+}

@@ -10,4 +10,7 @@ export const ADMIN_LINKS: NavLink[] = [
   { href: "/admin/personnel", label: "אנשי צוות" },
 ];
 
-export const WORKER_LINKS: NavLink[] = [{ href: "/dashboard", label: "דשבורד" }];
+export const WORKER_LINKS: NavLink[] = [
+  { href: "/dashboard", label: "דשבורד" },
+  { href: "/my-qualifications", label: "הכשירויות שלי" },
+];

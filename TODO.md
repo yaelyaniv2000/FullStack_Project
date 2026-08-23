@@ -229,7 +229,14 @@ is yours to edit freely.
 
 ## Phase 4 — Worker features
 
-- [ ] 💻 Worker: view their qualifications and expiry status (upcoming/expired)
+- [X] 💻 Worker: view their qualifications and expiry status (upcoming/expired) — `/my-qualifications`,
+      under a new `app/(worker)/layout.tsx` (mirrors the admin layout: `requireWorker()` guard +
+      `WORKER_LINKS` nav, new symmetric helper next to `requireAdmin()` in `lib/auth.ts`). Reuses
+      `listWorkerQualifications` (already built for the admin's grant/revoke screen) — same data
+      layer, new read-only `MyQualificationsList` component (no admin actions). Verified in a
+      real browser as the actual worker account: qualification displays correctly with status +
+      expiry, and confirmed `requireAdmin()` still correctly bounces a worker session away from
+      `/admin/positions` back to `/dashboard` — no console errors.
 - [ ] 💻 Worker: self-report a qualification (status: pending until admin approves)
 - [ ] 💻 Worker: submit availability for the open request window
 - [ ] 💻 Worker: view their published upcoming shifts
