@@ -190,8 +190,22 @@ is yours to edit freely.
       errors. Deferred: `/admin/availability-windows/[id]` (review submitted availability per
       shift) needs Phase 4's worker-submission feature to have any data to show, so it doesn't
       exist yet — not a gap, just sequencing, same reasoning as the dashboard.
-- [ ] 💻 Seed placeholder positions/qualifications for development — replace with the squadron's
-      real ones whenever that info arrives, no code changes needed
+- [X] 💻 Seed placeholder positions/qualifications for development — `supabase/seed.sql`
+      (`[db.seed] sql_paths` in `config.toml` already pointed at this filename, unused until now).
+      Qualifications (דרגה + options, מבצעיות + options, כשירות טיסה with a 180-day renewal),
+      positions (טייס/נווט קרב/מכונאי with required options and renewing qualifications), and one
+      shift template (טיסת שגרה) — designed from the placeholder data already organically built up
+      in the dev DB through this session's testing, cleaned up (e.g. replaced a leftover
+      `בדיקה 1` test qualification with the sensible `כשירות טיסה` renewal chain). Does **not**
+      seed `profiles`/auth accounts — those go through the Auth admin API, not a plain insert,
+      since `profiles.id` references `auth.users.id`.
+      **Verification is partial, by design**: dry-ran the exact insert shapes (option/trigger
+      constraints) via the service-role client against the real schema, insert-then-delete, all
+      passed. Did **not** run an actual `supabase db reset` — no Docker installed for an isolated
+      local stack, and the CLI is linked to the real remote dev project, so a reset would wipe
+      everything built up this session (test accounts, all positions/qualifications/shifts).
+      User confirmed: skip that for now, verify the real reset flow later when writing the
+      local-run-instructions README deliverable, since that needs testing anyway.
 - [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending
       qualification approvals, upcoming shifts, qualifications expiring soon. **Ordering note
       (2026-08-22)**: deliberately built last in Phase 3, after shift templates/shifts/
