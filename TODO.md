@@ -248,7 +248,20 @@ is yours to edit freely.
       admin's worker-detail page shows the `דווח על ידי העובד/ת` badge and אישור/דחייה buttons
       (built in the earlier approve/reject work), approving it flips the worker's own view to
       `מאושר` — no console errors.
-- [ ] 💻 Worker: submit availability for the open request window
+- [X] 💻 Worker: submit availability for the open request window — `/availability`, new
+      `features/availability/` domain. `listOpenWindowsWithShifts` finds every window where
+      `opens_at <= now <= closes_at`, and its shifts, with the worker's own prior response (null
+      if none). `submitAvailability` upserts on `(worker_id, shift_id)` per
+      `docs/technical-plan.md` — resubmission just overwrites, matching the CRUD table's "no
+      separate delete." First real use of `useOptimistic` in the app (`AvailabilityShiftRow`,
+      per CLAUDE.md's state-management conventions calling out availability toggles as the
+      canonical case) — instant button feedback on what's meant to be a quick phone interaction,
+      wrapped in `useTransition` since `setOptimistic` must run inside one. Verified in a real
+      browser: empty state when no window is open, admin opens a window + creates a shift in it,
+      worker sees it and toggles זמין/ה ↔ לא זמין/ה, confirmed via direct DB read that a second
+      click updates the same row rather than duplicating it, and confirmed the selected state
+      survives a full page reload (i.e. actually persisted, not just the optimistic UI) — no
+      console errors.
 - [ ] 💻 Worker: view their published upcoming shifts
 
 ## Phase 5 — Scheduling engine & publishing

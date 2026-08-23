@@ -13,4 +13,5 @@ export const ADMIN_LINKS: NavLink[] = [
 export const WORKER_LINKS: NavLink[] = [
   { href: "/dashboard", label: "דשבורד" },
   { href: "/my-qualifications", label: "הכשירויות שלי" },
+  { href: "/availability", label: "הגשת זמינות" },
 ];
