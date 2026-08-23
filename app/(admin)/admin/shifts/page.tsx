@@ -5,13 +5,15 @@ import { listShifts } from "@/features/shifts/queries";
 import { listPositions } from "@/features/positions/queries";
 import { listQualifications } from "@/features/qualifications/queries";
 import { listShiftTemplates } from "@/features/shift-templates/queries";
+import { listAvailabilityWindows } from "@/features/availability-windows/queries";
 
 export default async function ShiftsPage() {
-  const [shifts, positions, qualifications, templates] = await Promise.all([
+  const [shifts, positions, qualifications, templates, availabilityWindows] = await Promise.all([
     listShifts(),
     listPositions(),
     listQualifications(),
     listShiftTemplates(),
+    listAvailabilityWindows(),
   ]);
 
   return (
@@ -27,6 +29,7 @@ export default async function ShiftsPage() {
             allPositions={positions}
             allQualifications={qualifications}
             allTemplates={templates}
+            allAvailabilityWindows={availabilityWindows}
           />
         </CardContent>
       </Card>
@@ -41,6 +44,7 @@ export default async function ShiftsPage() {
             allPositions={positions}
             allQualifications={qualifications}
             allTemplates={templates}
+            allAvailabilityWindows={availabilityWindows}
           />
         </CardContent>
       </Card>

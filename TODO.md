@@ -172,7 +172,24 @@ is yours to edit freely.
       Verified end-to-end after all three fixes: create from template, inline-create a new
       position mid-edit (chip appears, persists after save), headcount edits, the
       end-before-start validation message, delete — no console errors on a clean run.
-- [ ] 💻 Admin: open an availability request window for an upcoming period
+- [X] 💻 Admin: open an availability request window for an upcoming period — `/admin/availability-windows`
+      (label + opens_at/closes_at, full CRUD), added to the admin nav. Status badge (טרם נפתח /
+      פתוח / נסגר) computed at render time from `opens_at`/`closes_at` vs. now, not stored.
+      **Real gap found and closed while building this**: `shifts.availability_window_id` existed
+      in the schema and `/admin/shifts` was documented as "grouped by availability window," but
+      no documented action anywhere (not `createShift`, not any window action) actually let an
+      admin set that FK — confirmed with the user before proceeding, then added an optional
+      "חלון זמינות" `Select` to `ShiftForm` (+ `availabilityWindowId` through
+      `features/shifts/actions.ts`/`queries.ts`) so the link is actually reachable from the UI,
+      plus a badge on each shift row showing its window's label when set. Applied the `items`
+      prop to the new window-picker `Select` proactively this time (third occurrence of the same
+      Base UI quirk — see the shifts entry above). Verified in a real browser: create/edit a
+      window, closes-before-opens validation, create a shift assigned to a window (label displays
+      correctly, not a raw id), deleting a window still referenced by a shift is correctly
+      blocked (`on delete` default `NO ACTION` on the FK → friendly Hebrew message) — no console
+      errors. Deferred: `/admin/availability-windows/[id]` (review submitted availability per
+      shift) needs Phase 4's worker-submission feature to have any data to show, so it doesn't
+      exist yet — not a gap, just sequencing, same reasoning as the dashboard.
 - [ ] 💻 Seed placeholder positions/qualifications for development — replace with the squadron's
       real ones whenever that info arrives, no code changes needed
 - [ ] 💻 Admin dashboard (home page): understaffed shifts flagged as priority, pending

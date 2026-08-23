@@ -13,6 +13,8 @@ export type Shift = {
   endTime: string;
   location: string | null;
   publishedAt: string | null;
+  availabilityWindowId: string | null;
+  availabilityWindowLabel: string | null;
   positions: ShiftPosition[];
 };
 
@@ -23,6 +25,8 @@ type RawShift = {
   end_time: string;
   location: string | null;
   published_at: string | null;
+  availability_window_id: string | null;
+  window: { label: string } | null;
   links: {
     position_id: string;
     headcount_needed: number;
@@ -36,6 +40,7 @@ export async function listShifts(): Promise<Shift[]> {
     .from("shifts")
     .select(
       `*,
+      window:availability_windows(label),
       links:shift_positions!shift_positions_shift_id_fkey(position_id, headcount_needed, position:positions!shift_positions_position_id_fkey(name))`,
     )
     .order("date", { ascending: true })
@@ -48,6 +53,8 @@ export async function listShifts(): Promise<Shift[]> {
     endTime: s.end_time,
     location: s.location,
     publishedAt: s.published_at,
+    availabilityWindowId: s.availability_window_id,
+    availabilityWindowLabel: s.window?.label ?? null,
     positions: s.links.map((l) => ({
       positionId: l.position_id,
       positionName: l.position?.name ?? "",

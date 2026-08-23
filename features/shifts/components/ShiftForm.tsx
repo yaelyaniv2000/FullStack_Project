@@ -15,7 +15,10 @@ import { createShift, updateShift, type ShiftState } from "@/features/shifts/act
 import type { Shift } from "@/features/shifts/queries";
 import type { ShiftTemplate } from "@/features/shift-templates/queries";
 import type { Qualification } from "@/features/qualifications/queries";
+import type { AvailabilityWindow } from "@/features/availability-windows/queries";
 import { ShiftPositionsPicker, type PositionRef, type SelectedPosition } from "./ShiftPositionsPicker";
+
+const NO_WINDOW = "__none__";
 
 /** Reused for both create and edit -- edit mode is just "a shift was passed in." */
 export function ShiftForm({
@@ -23,16 +26,19 @@ export function ShiftForm({
   allPositions,
   allQualifications,
   allTemplates,
+  allAvailabilityWindows,
   onDone,
 }: {
   shift?: Shift;
   allPositions: PositionRef[];
   allQualifications: Qualification[];
   allTemplates: ShiftTemplate[];
+  allAvailabilityWindows: AvailabilityWindow[];
   onDone?: () => void;
 }) {
   const action = shift ? updateShift.bind(null, shift.id) : createShift;
   const [state, formAction, pending] = useActionState<ShiftState, FormData>(action, undefined);
+  const [windowId, setWindowId] = useState(shift?.availabilityWindowId ?? NO_WINDOW);
 
   // Bumped after a successful submit (clears the picker, same reasoning as PositionForm) and
   // whenever a template is chosen (remounts the picker with that template's positions as its
@@ -48,6 +54,7 @@ export function ShiftForm({
       onDone?.();
       setPickerInitial(undefined);
       setPickerKey((k) => k + 1);
+      setWindowId(NO_WINDOW);
     }
   }, [state, onDone]);
 
@@ -113,6 +120,37 @@ export function ShiftForm({
         <Label htmlFor="location">מיקום (אופציונלי)</Label>
         <Input id="location" name="location" defaultValue={shift?.location ?? ""} />
       </div>
+
+      {allAvailabilityWindows.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <Label>חלון זמינות (אופציונלי)</Label>
+          <Select
+            value={windowId}
+            onValueChange={(v) => setWindowId(v as string)}
+            items={[
+              { value: NO_WINDOW, label: "ללא" },
+              ...allAvailabilityWindows.map((w) => ({ value: w.id, label: w.label })),
+            ]}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_WINDOW}>ללא</SelectItem>
+              {allAvailabilityWindows.map((w) => (
+                <SelectItem key={w.id} value={w.id}>
+                  {w.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input
+            type="hidden"
+            name="availabilityWindowId"
+            value={windowId === NO_WINDOW ? "" : windowId}
+          />
+        </div>
+      ) : null}
 
       <ShiftPositionsPicker
         key={pickerKey}

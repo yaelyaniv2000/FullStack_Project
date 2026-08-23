@@ -12,6 +12,7 @@ const shiftSchema = z
     startTime: z.string().min(1, "נא לבחור שעת התחלה"),
     endTime: z.string().min(1, "נא לבחור שעת סיום"),
     location: z.string().nullable(),
+    availabilityWindowId: z.string().nullable(),
   })
   .refine((v) => v.endTime > v.startTime, {
     message: "שעת הסיום חייבת להיות אחרי שעת ההתחלה",
@@ -29,11 +30,13 @@ function parsePositionRows(formData: FormData): { positionId: string; headcountN
 
 function parseShiftFields(formData: FormData) {
   const rawLocation = String(formData.get("location") ?? "").trim();
+  const rawWindowId = String(formData.get("availabilityWindowId") ?? "").trim();
   return shiftSchema.safeParse({
     date: formData.get("date"),
     startTime: formData.get("startTime"),
     endTime: formData.get("endTime"),
     location: rawLocation || null,
+    availabilityWindowId: rawWindowId || null,
   });
 }
 
@@ -59,6 +62,7 @@ export async function createShift(
       start_time: parsed.data.startTime,
       end_time: parsed.data.endTime,
       location: parsed.data.location,
+      availability_window_id: parsed.data.availabilityWindowId,
     })
     .select()
     .single();
@@ -106,6 +110,7 @@ export async function updateShift(
       start_time: parsed.data.startTime,
       end_time: parsed.data.endTime,
       location: parsed.data.location,
+      availability_window_id: parsed.data.availabilityWindowId,
     })
     .eq("id", id);
   if (error) {

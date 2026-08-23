@@ -9,17 +9,20 @@ import type { Shift } from "@/features/shifts/queries";
 import type { ShiftTemplate } from "@/features/shift-templates/queries";
 import type { Qualification } from "@/features/qualifications/queries";
 import type { PositionRef } from "./ShiftPositionsPicker";
+import type { AvailabilityWindow } from "@/features/availability-windows/queries";
 
 export function ShiftsList({
   shifts,
   allPositions,
   allQualifications,
   allTemplates,
+  allAvailabilityWindows,
 }: {
   shifts: Shift[];
   allPositions: PositionRef[];
   allQualifications: Qualification[];
   allTemplates: ShiftTemplate[];
+  allAvailabilityWindows: AvailabilityWindow[];
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -46,6 +49,7 @@ export function ShiftsList({
                 allPositions={allPositions}
                 allQualifications={allQualifications}
                 allTemplates={allTemplates}
+                allAvailabilityWindows={allAvailabilityWindows}
                 onDone={() => setEditingId(null)}
               />
             ) : (
@@ -61,6 +65,9 @@ export function ShiftsList({
                     <Badge variant={s.publishedAt ? "default" : "outline"}>
                       {s.publishedAt ? "פורסמה" : "טיוטה"}
                     </Badge>
+                    {s.availabilityWindowLabel ? (
+                      <Badge variant="secondary">{s.availabilityWindowLabel}</Badge>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                     {s.positions.length === 0 ? (
