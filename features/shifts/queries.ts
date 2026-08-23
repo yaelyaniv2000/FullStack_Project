@@ -155,3 +155,58 @@ export async function listUnderstaffedShifts(limit: number): Promise<Understaffe
     .filter((s) => s.unfilledPositions.length > 0)
     .slice(0, limit);
 }
+
+export type MyShift = {
+  shiftId: string;
+  positionId: string;
+  positionName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+};
+
+type RawMyShift = {
+  position_id: string;
+  position: { name: string } | null;
+  shift: {
+    id: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    location: string | null;
+    published_at: string | null;
+  } | null;
+};
+
+/**
+ * A worker's own published, upcoming assignments. `assignments` is always empty today (the
+ * scheduling engine is Phase 5, not built yet) so this correctly returns nothing until then --
+ * RLS already enforces the publish-timing rule (a worker can't see an assignment before its
+ * shift is published, even their own), this filter is defense in depth matching that same rule.
+ */
+export async function listMyUpcomingShifts(workerId: string): Promise<MyShift[]> {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from("assignments")
+    .select(
+      `position_id,
+      position:positions!assignments_position_id_fkey(name),
+      shift:shifts!assignments_shift_id_fkey(id, date, start_time, end_time, location, published_at)`,
+    )
+    .eq("worker_id", workerId);
+
+  return ((data as unknown as RawMyShift[]) ?? [])
+    .filter((a) => a.shift?.published_at && a.shift.date >= today)
+    .map((a) => ({
+      shiftId: a.shift!.id,
+      positionId: a.position_id,
+      positionName: a.position?.name ?? "",
+      date: a.shift!.date,
+      startTime: a.shift!.start_time,
+      endTime: a.shift!.end_time,
+      location: a.shift!.location,
+    }))
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+}

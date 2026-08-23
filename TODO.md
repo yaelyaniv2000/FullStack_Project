@@ -262,7 +262,19 @@ is yours to edit freely.
       click updates the same row rather than duplicating it, and confirmed the selected state
       survives a full page reload (i.e. actually persisted, not just the optimistic UI) — no
       console errors.
-- [ ] 💻 Worker: view their published upcoming shifts
+- [X] 💻 Worker: view their published upcoming shifts — `/my-shifts`. `listMyUpcomingShifts`
+      added to `features/shifts/queries.ts` (not a new domain -- `assignments` CRUD/writes belong
+      to Phase 5's `features/scheduling/`, per `docs/technical-plan.md`'s action list; this is
+      just a read). Filters to `published_at is not null` and `date >= today` as defense in
+      depth — RLS already enforces the exact same publish-timing rule at the DB level (the
+      "worker sees own assignment only once published, never before" policy from Phase 2).
+      `assignments` is empty today (Phase 5 not built), so correctly shows nothing until then.
+      No admin UI exists yet to create assignments or publish a shift, so verified by seeding
+      directly: one assignment on a manually-published shift (showed up correctly, with the right
+      position badge) and one on a still-draft shift (correctly did not show, confirming both the
+      query filter and RLS) — no console errors.
+
+**Phase 4 complete.**
 
 ## Phase 5 — Scheduling engine & publishing
 
