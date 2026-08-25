@@ -4,6 +4,7 @@ import { logout } from "@/features/auth/actions";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { ADMIN_LINKS, WORKER_LINKS } from "@/components/shared/nav-links";
 import { AdminDashboard } from "@/features/dashboard/components/AdminDashboard";
+import { WorkerDashboard } from "@/features/dashboard/components/WorkerDashboard";
 
 export default async function DashboardPage() {
   const profile = await getCurrentUser();
@@ -15,7 +16,9 @@ export default async function DashboardPage() {
         links={profile.role === "admin" ? ADMIN_LINKS : WORKER_LINKS}
         logoutAction={logout}
       />
-      <div className="mx-auto flex max-w-3xl flex-col gap-4 p-6">
+      <div
+        className={`mx-auto flex flex-col gap-4 p-6 ${profile.role === "admin" ? "max-w-6xl" : "max-w-3xl"}`}
+      >
         <h1 className="text-2xl font-bold">
           שלום, {profile.full_name} ({profile.role === "admin" ? "מנהל" : "עובד"})
         </h1>
@@ -23,9 +26,7 @@ export default async function DashboardPage() {
         {profile.role === "admin" ? (
           <AdminDashboard />
         ) : (
-          <p className="text-muted-foreground">
-            כאן יופיעו בעתיד המשמרות הקרובות שלך וסטטוס הכשירויות שלך.
-          </p>
+          <WorkerDashboard workerId={profile.id} />
         )}
       </div>
     </div>

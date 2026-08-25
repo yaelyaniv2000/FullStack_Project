@@ -276,6 +276,39 @@ is yours to edit freely.
 
 **Phase 4 complete.**
 
+## UX/UI pass before Phase 5 (2026-08-25, user feedback)
+
+User wrote up a full UX review (see conversation history) and explicitly split it into "do before
+Phase 5" vs. "build as part of Phase 5" — the latter (color-coded shift calendar, the
+assignment-approval/publish page, picking shifts into a window) *is* Phase 5's data model
+(assignments, generate/publish) described from the UX side, so building it earlier would mean
+guessing at a state model Phase 5 is about to define properly. Only the "do now" half is below.
+
+- [X] 💻 Header: airplane icon + centered/enlarged logo, hamburger moved to the same edge the
+      Sheet opens from (both now right-docked, previously inconsistent — button was left, panel
+      slid in from the right), nav rebuilt as a 2-column grid of tiles instead of plain text
+      links. All contained to `AppHeader.tsx`.
+- [X] 💻 "Dashboard" is now a home screen, not a nav item — `ADMIN_LINKS`/`WORKER_LINKS` no
+      longer include `/dashboard`; the logo (already linked there) is the only way in. Settled
+      this before Phase 5 adds more admin pages that need to fit the nav shape.
+- [X] 💻 Worker home screen: 3 upcoming shifts + link, qualification status, open-availability-
+      window banner — `WorkerDashboard.tsx`, pure assembly of already-built queries
+      (`listMyUpcomingShifts`, `listWorkerQualifications`, `listOpenWindowsWithShifts`), no new
+      data logic.
+- [X] 💻 `/admin/availability-windows/[id]` — per-shift breakdown of who marked available/
+      unavailable. This was the page explicitly deferred back in Phase 3 pending Phase 4's
+      worker-submission data; that data exists now, so built it. Real bug caught building it:
+      `<Button render={<Link .../>}>` triggered a Base UI console warning (`nativeButton` expects
+      a real `<button>`) — fixed by using the exported `buttonVariants()` directly on the `Link`
+      instead of wrapping it in `Button`.
+- [X] 💻 Desktop/mobile pass: admin layout width `max-w-3xl → max-w-6xl` (both the shared
+      `(admin)/layout.tsx` and the dashboard page's admin branch) — screenshotted at 1440px
+      before/after, previous width left most of a desktop screen empty. Also caught and fixed a
+      real mobile overflow: `ShiftPositionsPicker`'s "תפקיד חדש" button was getting clipped at
+      375px width (`flex` → `flex flex-wrap` on that row). Worker pages were already fine at
+      mobile width (RTL logical utilities + shadcn defaults already mobile-first, per
+      CLAUDE.md's day-one decision) — confirmed via screenshot, not just assumed.
+
 ## Phase 5 — Scheduling engine & publishing
 
 - [ ] 💻 `scheduling_constraints` table + migration seeding `min_rest_hours` and

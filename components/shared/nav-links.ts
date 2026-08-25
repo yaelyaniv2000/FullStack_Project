@@ -1,7 +1,6 @@
 import type { NavLink } from "./AppHeader";
 
 export const ADMIN_LINKS: NavLink[] = [
-  { href: "/dashboard", label: "דשבורד" },
   { href: "/admin/qualifications", label: "כשירויות" },
   { href: "/admin/positions", label: "תפקידים" },
   { href: "/admin/shift-templates", label: "תבניות משמרת" },
@@ -11,7 +10,6 @@ export const ADMIN_LINKS: NavLink[] = [
 ];
 
 export const WORKER_LINKS: NavLink[] = [
-  { href: "/dashboard", label: "דשבורד" },
   { href: "/my-qualifications", label: "הכשירויות שלי" },
   { href: "/availability", label: "הגשת זמינות" },
   { href: "/my-shifts", label: "המשמרות שלי" },

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AvailabilityWindowForm } from "./AvailabilityWindowForm";
 import { deleteAvailabilityWindow } from "@/features/availability-windows/actions";
@@ -50,6 +51,12 @@ export function AvailabilityWindowsList({ windows }: { windows: AvailabilityWind
                     </span>
                   </div>
                   <div className="flex gap-2">
+                    <Link
+                      href={`/admin/availability-windows/${w.id}`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      צפייה בתגובות
+                    </Link>
                     <Button variant="outline" size="sm" onClick={() => setEditingId(w.id)}>
                       עריכה
                     </Button>

@@ -98,7 +98,7 @@ export function ShiftPositionsPicker({
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {available.length > 0 ? (
           <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
             <PopoverTrigger

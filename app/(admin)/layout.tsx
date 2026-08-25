@@ -12,7 +12,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen">
       <AppHeader links={ADMIN_LINKS} logoutAction={logout} />
-      <div className="mx-auto max-w-3xl p-6">{children}</div>
+      <div className="mx-auto max-w-6xl p-6">{children}</div>
     </div>
   );
 }
