@@ -29,7 +29,11 @@ feature means adding a module, not editing several shared files.
 │   │       │   ├── page.tsx
 │   │       │   └── [id]/page.tsx
 │   │       ├── schedule/[windowId]/page.tsx
-│   │       └── scheduling-settings/page.tsx   # toggle/tune scheduling_constraints rows
+│   │       └── settings/page.tsx         # unified settings (2026-08-26 user feedback, replaces
+│   │                                       the earlier separate scheduling-settings/ plan):
+│   │                                       constraints + pairing preferences now, room for
+│   │                                       general app settings (e.g. EXPIRING_SOON_DAYS) as
+│   │                                       new sections later -- one page, not several
 │   ├── (worker)/
 │   │   ├── layout.tsx                    # worker-only layout guard
 │   │   ├── my-qualifications/page.tsx
@@ -51,7 +55,14 @@ feature means adding a module, not editing several shared files.
 │   ├── shift-templates/
 │   ├── shifts/
 │   ├── availability/
-│   ├── scheduling/                       # the heuristic engine + generate/publish actions
+│   ├── scheduling/                       # the heuristic engine + generate/publish actions +
+│   │                                       scheduling_constraints + worker_pairing_preferences
+│   │                                       (both feed the heuristic directly, so they live here
+│   │                                       even though /admin/settings displays them alongside
+│   │                                       general settings)
+│   ├── settings/                         # general app settings (e.g. EXPIRING_SOON_DAYS) --
+│   │                                       deliberately separate from scheduling/, see the
+│   │                                       action-signatures section for why
 │   └── notifications/
 ├── lib/
 │   ├── supabase/  { server.ts, client.ts, proxy.ts, admin.ts }  -- admin.ts is the service-role
@@ -240,11 +251,34 @@ notifications
   read_at     timestamptz null
 
 scheduling_constraints            -- admin-tunable parameters the heuristic's eligibility step reads
-  id           uuid PK
-  type         text        not null unique check (type in ('min_rest_hours', 'max_shifts_per_window'))
-  enabled      boolean     not null default false
-  value        numeric     not null   -- meaning depends on type: hours, or a count
-  updated_at   timestamptz not null default now()
+  id                      uuid PK
+  type                    text        not null check (type in ('min_rest_hours', 'max_shifts_per_window'))
+  qualification_option_id uuid        null references qualification_options(id) on delete cascade
+     -- null = the type's default/global row. Non-null = an override for workers holding that
+     -- specific option (e.g. a "סוג שירות" qualification's "מילואים" option) -- see
+     -- "Scheduling engine" below for how a worker's effective value is resolved. Decided
+     -- 2026-08-26 (user feedback): per-category constraint values, modeled via the *existing*
+     -- qualification system rather than a hardcoded "reserve/regular" concept, so it works for
+     -- any category the admin defines, not just service type.
+  enabled                 boolean     not null default false
+  value                   numeric     not null   -- meaning depends on type: hours, or a count.
+     -- min_rest_hours is entered in the UI as days+hours and combined into one number here --
+     -- form-only convenience, not a schema concern.
+  updated_at              timestamptz not null default now()
+  -- at most one default row per type, at most one override row per (type, qualification_option_id):
+  unique index on (type) where qualification_option_id is null
+  unique index on (type, qualification_option_id) where qualification_option_id is not null
+
+worker_pairing_preferences        -- decided 2026-08-26 (user feedback): relational, not a
+                                   -- per-worker eligibility constraint, so it doesn't fit the
+                                   -- table above -- see "Scheduling engine" below
+  id            uuid PK
+  worker_id_1   uuid        references profiles(id) on delete cascade
+  worker_id_2   uuid        references profiles(id) on delete cascade
+  preference    text        not null check (preference in ('avoid', 'prefer_avoid', 'prefer'))
+  created_at    timestamptz not null default now()
+  check (worker_id_1 < worker_id_2)      -- canonical ordering: one row per pair, not two
+  unique (worker_id_1, worker_id_2)      -- a pair holds exactly one preference at a time
 ```
 
 `scheduling_constraints` is seeded with exactly one row per known type (via migration) and is
@@ -277,7 +311,8 @@ dashboard and "my X" queries directly. Full reasoning goes in the scale doc late
 | `availability` | Worker (self) | Own (worker) / all (admin) | Worker (self, before window closes) | — (resubmission overwrites, no separate delete) |
 | `assignments` | Engine (bulk, via generate) / Admin (manual) | Admin (all) / Worker (own, published only) | Admin (reassign, before publish) | Admin (before publish) |
 | `notifications` | System (on publish) | Own (worker) | Worker (mark read) | — |
-| `scheduling_constraints` | — (seeded by migration only) | Admin | Admin (enable + value) | — |
+| `scheduling_constraints` | — (default rows seeded by migration; override rows Admin-created per qualification option) | Admin | Admin (enable + value) | Admin (override rows only, not the default rows) |
+| `worker_pairing_preferences` | Admin | Admin | Admin (change preference type) | Admin |
 
 Two deliberate non-deletes worth calling out: qualification **history** for a worker is never
 hard-deleted (revoking is a status change, so "who held what, when" stays queryable — this is
@@ -338,10 +373,26 @@ deleteShift(id: string): Result<void>   // fails if published
 submitAvailability(shiftId: string, isAvailable: boolean): Result<void>   // upsert on (worker_id, shift_id)
 
 // features/scheduling/actions.ts
-generateSchedule(windowId: string): Result<{ proposedCount: number; unfilledSlots: SlotRef[] }>
+generateSchedule(windowId: string): Result<{ proposedCount: number; unfilledSlots: SlotRef[]; softAvoidConflicts: PairConflictRef[] }>
 updateAssignment(shiftId: string, positionId: string, workerId: string | null): Result<void>  // admin manual edit
 publishSchedule(windowId: string): Result<{ publishedShiftCount: number }>  // sets published_at, writes notifications
-updateSchedulingConstraint(type: 'min_rest_hours' | 'max_shifts_per_window', input: { enabled: boolean; value: number }): Result<void>  // admin only
+// qualificationOptionId omitted/null = the type's default row; set = an override for that option
+updateSchedulingConstraint(type: 'min_rest_hours' | 'max_shifts_per_window', qualificationOptionId: string | null, input: { enabled: boolean; value: number }): Result<void>  // admin only
+setWorkerPairingPreference(workerId1: string, workerId2: string, preference: 'avoid' | 'prefer_avoid' | 'prefer'): Result<void>  // admin only, upserts on the canonical pair
+deleteWorkerPairingPreference(id: string): Result<void>  // admin only
+// PairConflictRef: { workerId1, workerId2, shiftId } -- every prefer_avoid pair that ended up
+// assigned together; generateSchedule returns them so the review screen can flag them, and they
+// must also be queryable after publish (not just at generate time) per the flagging requirement
+// below -- likely means computing this at read time from assignments + worker_pairing_preferences
+// rather than storing a separate "conflict" row, consistent with this project's computed-not-
+// stored bias elsewhere (qualification expiry, understaffed-shift detection).
+
+// features/settings/actions.ts   -- general app settings, decided 2026-08-26: kept separate from
+// features/scheduling/ since EXPIRING_SOON_DAYS is a worker-qualifications concern, not a
+// scheduling one -- the /admin/settings PAGE composes both, it's a UI aggregation, not a
+// data-layer merge. Storage shape (single-row config table vs. key/value rows) TBD at
+// implementation time.
+updateExpiringSoonDays(days: number): Result<void>  // admin only
 ```
 
 ## תיאור הלוגיקה העסקית המרכזית (Core business logic)
@@ -377,38 +428,73 @@ Runs once per `generateSchedule(windowId)` call. Deliberately a **greedy heurist
 constraint solver (see `architecture.md`) — explainable in one pass, with the admin's manual
 review as the correctness backstop.
 
+**Design finalized 2026-08-26 (user feedback).** Two kinds of admin-configurable input feed this
+algorithm, and they behave differently — worth understanding before reading the steps below:
+- `scheduling_constraints` — **per-worker** rules (does this one worker, alone, qualify). Each
+  type has a default value plus optional per-qualification-option overrides (e.g. a different
+  `min_rest_hours` for workers holding a "מילואים" option on some "סוג שירות" qualification, vs.
+  everyone else). A worker's *effective* value for a constraint type = their most specific
+  matching override if one exists, else the type's default row. These are **hard** — a worker who
+  fails one is simply not eligible for the slot.
+- `worker_pairing_preferences` — **relational** (does this worker, in combination with who's
+  already on this shift, make a good/bad pairing). Three types, only one of which is hard:
+  - `avoid` — **hard**. A worker is ineligible for a slot if a worker they hard-avoid is already
+    assigned (this run) to a different position on the *same shift*. If that leaves zero eligible
+    workers, the slot goes unfilled and gets flagged like any other gap — never overridden.
+  - `prefer_avoid` — **soft**. Does *not* affect eligibility. Only lowers priority in the
+    tiebreak (step 4) when an avoid-preferring partner is already on that shift — used only if
+    it's the only way to fill the slot. Every pairing that happens anyway must be tracked (see
+    step 4) so it can be flagged to the admin both pre- and post-publish.
+  - `prefer` — **soft**, the mirror of `prefer_avoid`: raises priority in the tiebreak when a
+    preferred partner is already on the shift. Never forces a pairing, just nudges toward one.
+
+  A pair holds exactly one of these three at a time (enforced by the table's unique constraint on
+  the pair) — not, e.g., both an avoid and a prefer simultaneously.
+
 1. **Flatten to slots.** For every shift in the window, for every `shift_positions` row, create
    one "slot" per unit of `headcount_needed` (a shift needing 3 guards = 3 slots).
 2. **Compute eligibility per slot.** A worker is eligible for a slot if: they hold an
    **approved** qualification satisfying every qualification the slot's position requires
    (`position_qualifications`); they submitted `is_available = true` for that shift; assigning
    them wouldn't overlap another shift already assigned to them on the same date (no
-   double-booking); and they satisfy every **enabled** row in `scheduling_constraints`:
-   - `min_rest_hours` — the gap between this shift's start and the worker's nearest other
-     assignment (within this run) is at least `value` hours.
-   - `max_shifts_per_window` — the worker's assignment count so far in this run is below `value`.
+   double-booking); they satisfy every **enabled** `scheduling_constraints` row at their
+   *effective* (category-resolved) value; and no `avoid` pairing partner is already assigned to a
+   different position on the same shift, this run.
 
    Disabled constraint rows are skipped entirely, so an admin who hasn't enabled a constraint
    yet gets exactly today's behavior — no accidental new restrictions from adding a row.
 3. **Order slots by scarcity.** Sort ascending by number of eligible workers — fill the
    hardest-to-fill slots first, since leaving them for last risks their few eligible workers
    already being consumed by easier slots.
-4. **Assign.** For each slot in that order: if eligible workers exist, assign the one with the
-   fewest assignments so far *within this run* (a simple fairness tiebreaker — spreads load
-   rather than always picking the same first-eligible worker). Remove that worker's availability
+4. **Assign.** For each slot in that order, score every eligible worker: start from
+   fewest-assignments-so-far *within this run* (the original fairness tiebreaker — spreads load
+   rather than always picking the same first-eligible worker), then adjust for pairing —
+   boost a worker who has a `prefer` partner already on this shift, penalize (but don't exclude) a
+   worker who has a `prefer_avoid` partner already on this shift. Assign the top-scoring worker.
+   If the assignment paired a `prefer_avoid` relationship anyway (no better-scoring option
+   existed), record it as a soft-avoid conflict for this shift. Remove that worker's availability
    for any now-conflicting slot.
 5. **Flag gaps.** A slot with zero eligible workers is left unfilled and reported back
    (`unfilledSlots`) — this is exactly what drives the "understaffed shift" dashboard flag from
    `product-spec.md`.
 6. **Write proposed assignments** (`created_by = null`) — nothing is published yet; the admin
-   reviews/edits via `updateAssignment` before calling `publishSchedule`.
+   reviews/edits via `updateAssignment` before calling `publishSchedule`. Soft-avoid conflicts
+   from step 4 must be visibly flagged on that review screen, **and stay queryable after
+   publish** too (an admin checking an already-published schedule later should still see them) —
+   computed at read time from `assignments` + `worker_pairing_preferences` rather than stored as
+   a separate row, consistent with this project's computed-not-stored bias elsewhere
+   (qualification expiry, understaffed-shift detection). Manually reassigning a slot via
+   `updateAssignment` can introduce or remove a soft-avoid conflict too, so the flag has to be
+   live, not just a snapshot from `generateSchedule`'s return value.
 
 This is intentionally the *first* version of the algorithm. `min_rest_hours` and
 `max_shifts_per_window` are the starter constraint types — generic enough to be useful without
 squadron-specific input, and admin-tunable without a code change (see `scheduling_constraints`
-above). Squadron-specific rules identified later (e.g. seniority pairing) become **new** constraint
-types: a new case in step 2 plus a migration to seed the row — a small, additive change, not a
-redesign, but not purely a settings change either.
+above). Squadron-specific rules identified later become **new** constraint types: a new case in
+step 2 plus a migration to seed the row — a small, additive change, not a redesign, but not
+purely a settings change either. Worker pairing preferences, unlike the per-worker constraints,
+don't need a new "type" for new use cases — the three preference types are meant to cover the
+general shape of "these two work well/poorly together," whatever the underlying reason.
 
 ## ניהול State באפליקציה (State management)
 

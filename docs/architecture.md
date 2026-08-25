@@ -43,7 +43,8 @@ relational schema with foreign keys is for, as opposed to a document store.
 | `availability` | A worker's response for one shift | `id`, `worker_id`, `shift_id`, `is_available`, `responded_at` |
 | `assignments` | Worker assigned to a position on a shift | `shift_id` + `position_id` (composite FK → `shift_positions`), `worker_id`, `created_by` (nullable — null = engine, set = admin), `created_at` |
 | `notifications` | In-app notifications for workers | `id`, `worker_id`, `shift_id` (nullable), `message`, `created_at`, `read_at` (nullable) |
-| `scheduling_constraints` | Admin-tunable parameters for the scheduling heuristic (e.g. minimum rest between shifts) | `id`, `type`, `enabled`, `value` |
+| `scheduling_constraints` | Admin-tunable parameters for the scheduling heuristic (e.g. minimum rest between shifts), with optional per-worker-category overrides | `id`, `type`, `qualification_option_id` (nullable — null = default), `enabled`, `value` |
+| `worker_pairing_preferences` | Which worker pairs to avoid/prefer scheduling together (decided 2026-08-26) | `id`, `worker_id_1`, `worker_id_2`, `preference` (`avoid`/`prefer_avoid`/`prefer`) |
 
 **Refinements from the earlier planning notes in `TODO.md`, made concrete here:**
 - `position_renews_qualifications` is its own join table (position → *many* qualifications it can
@@ -111,9 +112,12 @@ Admin-only (`role = admin`, enforced by RLS + a layout-level guard):
 - `/admin/availability-windows/[id]` — open/close an availability window; see submitted
   availability per shift.
 - `/admin/schedule/[windowId]` — trigger schedule generation for the window, review/edit the
-  proposed assignments, resolve flagged understaffed shifts, publish.
-- `/admin/scheduling-settings` — enable/tune the scheduling heuristic's constraint parameters
-  (e.g. minimum rest between shifts, max shifts per worker per window).
+  proposed assignments, resolve flagged understaffed shifts and soft-avoid pairing conflicts,
+  publish.
+- `/admin/settings` — unified settings page (decided 2026-08-26, replaces the earlier
+  scheduling-settings-only plan): enable/tune scheduling constraints (incl. per-worker-category
+  overrides), manage worker pairing preferences, and general app settings (e.g.
+  `EXPIRING_SOON_DAYS`) as further sections — one page, not one page per concern.
 
 Worker-only (`role = worker`):
 - `/my-qualifications` — view own qualifications with computed expiry status; self-report a new

@@ -171,11 +171,35 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
   no create/delete from the UI. New constraint *values* are pure data; a genuinely new constraint
   *type* (e.g. seniority rules, once known) is a small additive code change (new eligibility
   case) + migration, not a UI-only change and not a redesign.
+  **Extended 2026-08-26 (user feedback), two additive changes to this same model:**
+  1. **Per-worker-category values.** A constraint can have a default value plus per-category
+     override values — modeled via the *existing* qualification system (e.g. a "סוג שירות"
+     qualification with a "מילואים" option gets its own `min_rest_hours`), not a hardcoded
+     reserve/regular concept. `scheduling_constraints` gained a nullable `qualification_option_id`
+     (null = default row). Still update-only from the UI for values; still no new constraint
+     *types* without a code change.
+  2. **Worker pairing preferences** — a genuinely different kind of input from the per-worker
+     constraints above: *relational* (depends who else is on the shift), not per-worker. New
+     `worker_pairing_preferences` table, one row per pair, three types: `avoid` (hard — never
+     pairs, unfilled slot flagged like any gap if that's the only option), `prefer_avoid` (soft —
+     tries not to, but will rather than leave a slot empty, and every time it happens anyway it
+     must be flagged to the admin both pre-publish on the review screen *and* after publish, not
+     just at generate time), `prefer` (soft, the mirror). A pair holds exactly one of the three at
+     a time. Full algorithm impact (which step does what) is in `docs/technical-plan.md`.
+  3. **One unified `/admin/settings` page**, not separate pages per concern — replaces the
+     earlier plan of a standalone scheduling-settings page. Holds the constraints above plus
+     pairing preferences now, structured so general app settings (starting with
+     `EXPIRING_SOON_DAYS`, currently a hardcoded placeholder in
+     `features/worker-qualifications/queries.ts` pending this page) can be added as new sections
+     later without moving anything. `features/scheduling/` owns constraints + pairings (both feed
+     the heuristic directly); a new lightweight `features/settings/` owns general settings like
+     `EXPIRING_SOON_DAYS` — the page composes both, it's a UI aggregation, not a data-layer merge.
 - **The scheduling heuristic's exact algorithm is specified** in `docs/technical-plan.md` → Core
-  business logic (flatten shifts into slots → compute eligibility → sort by scarcity → greedy
-  assign with a fewest-assignments-so-far tiebreaker → flag unfilled slots). Extend step 2
-  (eligibility) as real constraints from the squadron become known — don't change the overall
-  shape.
+  business logic (flatten shifts into slots → compute eligibility, now including per-category
+  constraint values and hard `avoid` pairing exclusion → sort by scarcity → greedy assign with a
+  fewest-assignments-so-far tiebreaker adjusted for pairing preference → flag unfilled slots and
+  soft-avoid conflicts). Extend step 2 (eligibility) as real constraints from the squadron become
+  known — don't change the overall shape.
 - **`assignments` has no status column.** Whether an assignment is proposed or final is derived
   from its shift's `published_at` (null = admin-only draft, set = published & visible to the
   worker). Workers must never see assignments for a shift before `published_at` is set — this is

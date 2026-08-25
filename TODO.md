@@ -311,15 +311,64 @@ guessing at a state model Phase 5 is about to define properly. Only the "do now"
 
 ## Phase 5 — Scheduling engine & publishing
 
-- [ ] 💻 `scheduling_constraints` table + migration seeding `min_rest_hours` and
-      `max_shifts_per_window` (disabled by default)
-- [ ] 💻 Admin: scheduling-settings page to enable/tune constraints (update-only, no create/delete)
-- [ ] 💻 Implement the matching heuristic (qualifications + availability + no double-booking +
-      enabled `scheduling_constraints` — keep it simple and explainable)
-- [ ] 💻 Unit tests specifically for each constraint type (disabled = no effect; enabled = correctly
-      excludes ineligible workers)
-- [ ] 💻 Admin: review the proposed schedule, manually reassign/fix unfilled shifts
-- [ ] 💻 Admin: publish the finalized schedule
+**Constraint model design finalized 2026-08-26 (user feedback) — see the full writeup in
+`docs/technical-plan.md` → "Scheduling engine — the matching heuristic" and `CLAUDE.md`'s
+scheduling-constraints bullet before implementing any of this. Summary of what changed from the
+original single-value-per-type design:**
+- Per-worker-category constraint overrides, modeled via existing qualifications (not a
+  hardcoded "reserve/regular" concept) — a constraint has one default value plus optional
+  per-qualification-option override rows.
+- `min_rest_hours` gets a days+hours input in the UI (value still stored as a single number of
+  hours — form-only change, no schema impact beyond what's already needed).
+- New worker-pairing preferences, three types: `avoid` (hard — never pairs, unfilled slot flagged
+  like any other gap if that's the only option), `prefer_avoid` (soft — tries not to, but will
+  rather than leave a slot empty), `prefer` (soft — tiebreaker boost the other direction). A pair
+  holds exactly one of these at a time.
+- Any `prefer_avoid` pair that **did** end up scheduled together must be flagged to the admin in
+  two places: on the pre-publish review/approval screen, and persistently after publish too (not
+  just at review time — an admin checking an already-published schedule later should still see
+  it).
+- One unified `/admin/settings` page (not a separate scheduling-settings + pairings page) —
+  constraints section + pairing-preferences section now, structured so general app settings can
+  be added as new sections later without moving anything. First addition beyond scheduling:
+  `EXPIRING_SOON_DAYS` (currently hardcoded as a placeholder in
+  `features/worker-qualifications/queries.ts`) becomes a real admin-tunable setting here instead.
+
+---
+
+- [ ] 💻 `scheduling_constraints` table: add `qualification_option_id` (nullable FK to
+      `qualification_options`, default-row-per-type has it null) + migration seeding
+      `min_rest_hours`/`max_shifts_per_window` default rows (disabled by default)
+- [ ] 💻 `worker_pairing_preferences` table: `worker_id_1`, `worker_id_2` (canonical ordering,
+      `worker_id_1 < worker_id_2`, unique pair), `preference` (`avoid` / `prefer_avoid` / `prefer`)
+- [ ] 💻 App-settings value for `EXPIRING_SOON_DAYS` (small key/value or dedicated column —
+      decide exact storage shape during implementation) + wire the dashboard widget to read it
+      instead of the hardcoded constant
+- [ ] 💻 Admin: unified `/admin/settings` page — constraints section (enable/tune + per-category
+      override rows, days+hours input for `min_rest_hours`), pairing-preferences section
+      (add/remove pairs + type), expiring-soon-days setting. Update-only for constraints (no
+      create/delete of constraint *types* from the UI, per the existing narrow-settings-page
+      decision — pairing rows themselves ARE creatable/deletable, since they're admin data, not
+      algorithm types)
+- [ ] 💻 Implement the matching heuristic:
+      - Eligibility (step 2): qualifications + availability + no double-booking + enabled
+        constraints, each resolved to the worker's most specific matching value (their
+        qualification-option override if one exists, else the type's default) + hard `avoid`
+        pairing exclusion (ineligible if a hard-avoid partner is already on a different position
+        of the same shift, this run)
+      - Tiebreak (step 4): fewest-assignments-so-far blended with pairing score (`prefer` partner
+        already on the shift = boost, `prefer_avoid` partner already on the shift = penalize but
+        don't exclude)
+      - Track and surface every `prefer_avoid` pair that still ended up together, for the
+        flagging requirement above
+- [ ] 💻 Unit tests: each constraint type (disabled = no effect; enabled = correctly excludes
+      ineligible workers; per-category override picks the right value over the default); all
+      three pairing types (hard avoid never pairs even if it unfills a slot; soft avoid pairs
+      only when it's the only option, and gets flagged; prefer influences the tiebreak)
+- [ ] 💻 Admin: review the proposed schedule, manually reassign/fix unfilled shifts, see flagged
+      `prefer_avoid` conflicts
+- [ ] 💻 Admin: publish the finalized schedule — flagged `prefer_avoid` conflicts must remain
+      visible somewhere after publish too, not just on the pre-publish review screen
 - [ ] 💻 Worker: in-app notification of newly published/assigned shifts
 - [ ] 💻 Automatic qualification renewal: once a shift's date has passed, extend the expiry of
       any qualification tied to a position an assigned worker fulfilled (document the "shift
