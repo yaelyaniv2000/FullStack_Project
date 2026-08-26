@@ -6,6 +6,15 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
 import type { ConstraintType, PairingPreference } from "./queries";
+import {
+  runSchedulingHeuristic,
+  type ConstraintRow,
+  type HeuristicSlot,
+  type HeuristicWorker,
+  type PairConflictRef,
+  type PairingInput,
+  type SlotRef,
+} from "./heuristic";
 
 const constraintSchema = z.object({
   type: z.enum(["min_rest_hours", "max_shifts_per_window"]),
@@ -158,6 +167,228 @@ export async function deleteWorkerPairingPreference(id: string): Promise<Result<
   }
 
   revalidatePath("/admin/settings");
+  return { success: true, data: undefined };
+}
+
+export type GenerateScheduleResult = {
+  proposedCount: number;
+  unfilledSlots: SlotRef[];
+  softAvoidConflicts: PairConflictRef[];
+};
+
+/**
+ * Fetches everything the pure heuristic needs for one availability window and assembles it into
+ * HeuristicInput. Kept separate from runSchedulingHeuristic on purpose (see heuristic.ts's top
+ * comment) -- all the DB/RLS-specific code lives here, the algorithm stays pure and testable
+ * without a live database.
+ */
+async function buildHeuristicInputForWindow(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  windowId: string,
+): Promise<{ input: import("./heuristic").HeuristicInput; shiftIds: string[] } | null> {
+  // Only unpublished shifts get (re)generated -- a published shift's assignments are locked in,
+  // matching the CRUD table's "assignments deletable only before publish."
+  const { data: shifts } = await supabase
+    .from("shifts")
+    .select("id, date, start_time, end_time")
+    .eq("availability_window_id", windowId)
+    .is("published_at", null);
+  if (!shifts || shifts.length === 0) return null;
+  const shiftIds = shifts.map((s) => s.id);
+
+  const { data: shiftPositions } = await supabase
+    .from("shift_positions")
+    .select("shift_id, position_id, headcount_needed")
+    .in("shift_id", shiftIds);
+  const positionIds = [...new Set((shiftPositions ?? []).map((sp) => sp.position_id))];
+
+  const { data: positionQuals } = await supabase
+    .from("position_qualifications")
+    .select("position_id, qualification_id, option_id")
+    .in("position_id", positionIds.length > 0 ? positionIds : [""]);
+  const requirementsByPosition = new Map<string, { qualificationId: string; optionId: string | null }[]>();
+  for (const pq of positionQuals ?? []) {
+    const list = requirementsByPosition.get(pq.position_id) ?? [];
+    list.push({ qualificationId: pq.qualification_id, optionId: pq.option_id });
+    requirementsByPosition.set(pq.position_id, list);
+  }
+
+  const slots: HeuristicSlot[] = [];
+  for (const sp of shiftPositions ?? []) {
+    const shift = shifts.find((s) => s.id === sp.shift_id)!;
+    const requirements = requirementsByPosition.get(sp.position_id) ?? [];
+    for (let i = 0; i < sp.headcount_needed; i++) {
+      slots.push({
+        shiftId: sp.shift_id,
+        positionId: sp.position_id,
+        slotIndex: i,
+        date: shift.date,
+        startTime: shift.start_time,
+        endTime: shift.end_time,
+        requirements,
+      });
+    }
+  }
+
+  const { data: workerProfiles } = await supabase.from("profiles").select("id").eq("role", "worker");
+  const workerIds = (workerProfiles ?? []).map((w) => w.id);
+
+  const { data: approvedQuals } = await supabase
+    .from("worker_qualifications")
+    .select("worker_id, qualification_id, option_id")
+    .eq("status", "approved")
+    .in("worker_id", workerIds.length > 0 ? workerIds : [""]);
+
+  const { data: availabilityRows } = await supabase
+    .from("availability")
+    .select("worker_id, shift_id")
+    .eq("is_available", true)
+    .in("shift_id", shiftIds);
+
+  // Every existing assignment EXCEPT ones on the shifts being regenerated right now (those get
+  // cleared and replaced below) -- a worker already committed elsewhere (published or not)
+  // shouldn't be double-booked into this window either.
+  const { data: existingAssignments } = await supabase
+    .from("assignments")
+    .select("worker_id, shift:shifts!assignments_shift_id_fkey(id, date)")
+    .not("shift_id", "in", `(${shiftIds.join(",")})`);
+
+  const workers: HeuristicWorker[] = workerIds.map((id) => ({
+    id,
+    heldQualifications: (approvedQuals ?? [])
+      .filter((q) => q.worker_id === id)
+      .map((q) => ({ qualificationId: q.qualification_id, optionId: q.option_id })),
+    availableShiftIds: (availabilityRows ?? [])
+      .filter((a) => a.worker_id === id)
+      .map((a) => a.shift_id),
+    existingAssignedDates: (existingAssignments as unknown as { worker_id: string; shift: { date: string } | null }[] ?? [])
+      .filter((a) => a.worker_id === id && a.shift)
+      .map((a) => a.shift!.date),
+  }));
+
+  const { data: constraintRows } = await supabase
+    .from("scheduling_constraints")
+    .select("type, qualification_option_id, enabled, value");
+  const constraints: ConstraintRow[] = (constraintRows ?? []).map((c) => ({
+    type: c.type as ConstraintType,
+    qualificationOptionId: c.qualification_option_id,
+    enabled: c.enabled,
+    value: c.value,
+  }));
+
+  const { data: pairingRows } = await supabase
+    .from("worker_pairing_preferences")
+    .select("worker_id_1, worker_id_2, preference");
+  const pairings: PairingInput[] = (pairingRows ?? []).map((p) => ({
+    workerId1: p.worker_id_1,
+    workerId2: p.worker_id_2,
+    preference: p.preference as PairingPreference,
+  }));
+
+  return { input: { slots, workers, constraints, pairings }, shiftIds };
+}
+
+export type GenerateScheduleState = Result<GenerateScheduleResult>;
+
+/**
+ * Regenerates the proposed schedule for every unpublished shift in this window: clears whatever
+ * assignments currently exist for those shifts (engine-generated or manual -- see TODO.md, this
+ * is a deliberate "always a fresh start" choice, not a merge) and writes fresh proposed
+ * assignments (created_by: null) from the heuristic. Nothing is published -- the admin reviews
+ * via updateAssignment before calling publishSchedule.
+ */
+export async function generateSchedule(windowId: string): Promise<GenerateScheduleState> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const built = await buildHeuristicInputForWindow(supabase, windowId);
+  if (!built) {
+    return { success: true, data: { proposedCount: 0, unfilledSlots: [], softAvoidConflicts: [] } };
+  }
+  const { input, shiftIds } = built;
+
+  const result = runSchedulingHeuristic(input);
+
+  const { error: deleteError } = await supabase.from("assignments").delete().in("shift_id", shiftIds);
+  if (deleteError) {
+    return { success: false, error: "שגיאה בניקוי השיבוצים הקודמים" };
+  }
+
+  if (result.assignments.length > 0) {
+    const { error: insertError } = await supabase.from("assignments").insert(
+      result.assignments.map((a) => ({
+        shift_id: a.shiftId,
+        position_id: a.positionId,
+        worker_id: a.workerId,
+        created_by: null,
+      })),
+    );
+    if (insertError) {
+      return { success: false, error: "שגיאה בשמירת השיבוצים המוצעים" };
+    }
+  }
+
+  revalidatePath(`/admin/schedule/${windowId}`);
+  return {
+    success: true,
+    data: {
+      proposedCount: result.assignments.length,
+      unfilledSlots: result.unfilledSlots,
+      softAvoidConflicts: result.softAvoidConflicts,
+    },
+  };
+}
+
+/** Manual admin overrides, deliberately unvalidated against qualifications/availability/rest --
+ * the whole point of the review step is that the admin has final say and can fix what the
+ * heuristic couldn't. The DB's own composite primary key on assignments (shift_id, position_id,
+ * worker_id) already prevents an exact duplicate row. */
+export async function addAssignment(
+  windowId: string,
+  shiftId: string,
+  positionId: string,
+  workerId: string,
+): Promise<Result<void>> {
+  const admin = await requireAdmin();
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("assignments").insert({
+    shift_id: shiftId,
+    position_id: positionId,
+    worker_id: workerId,
+    created_by: admin.id,
+  });
+  if (error) {
+    return {
+      success: false,
+      error: error.code === "23505" ? "העובד/ת כבר משובץ/ת לתפקיד זה" : "שגיאה בשיבוץ",
+    };
+  }
+
+  revalidatePath(`/admin/schedule/${windowId}`);
+  return { success: true, data: undefined };
+}
+
+export async function removeAssignment(
+  windowId: string,
+  shiftId: string,
+  positionId: string,
+  workerId: string,
+): Promise<Result<void>> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("assignments")
+    .delete()
+    .eq("shift_id", shiftId)
+    .eq("position_id", positionId)
+    .eq("worker_id", workerId);
+  if (error) {
+    return { success: false, error: "שגיאה בהסרת השיבוץ" };
+  }
+
+  revalidatePath(`/admin/schedule/${windowId}`);
   return { success: true, data: undefined };
 }
 

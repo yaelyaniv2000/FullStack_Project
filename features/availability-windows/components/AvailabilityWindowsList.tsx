@@ -57,6 +57,12 @@ export function AvailabilityWindowsList({ windows }: { windows: AvailabilityWind
                     >
                       צפייה בתגובות
                     </Link>
+                    <Link
+                      href={`/admin/schedule/${w.id}`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      שיבוץ
+                    </Link>
                     <Button variant="outline" size="sm" onClick={() => setEditingId(w.id)}>
                       עריכה
                     </Button>

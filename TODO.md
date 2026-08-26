@@ -448,8 +448,43 @@ is the right tool specifically here, not a general policy change for every futur
       constraint was ever exercised). Exactly the kind of mistake manual browser verification
       would have been slow to catch and unit tests caught immediately — the concrete payoff this
       test-infra decision was made for.
-- [ ] 💻 Admin: review the proposed schedule, manually reassign/fix unfilled shifts, see flagged
-      `prefer_avoid` conflicts
+- [X] 💻 `generateSchedule` (the actual DB-touching Server Action, deliberately separate from
+      the pure heuristic — see the heuristic.ts task above) + Admin: review the proposed
+      schedule, manually reassign/fix unfilled shifts, see flagged `prefer_avoid` conflicts —
+      `/admin/schedule/[windowId]`, reached via a new "שיבוץ" link on each availability window.
+
+      **One real design gap caught building this, before any code**: the heuristic's original
+      `ConstraintInput` type (from the earlier task) supported only one `enabled` flag per
+      constraint *type*, but the actual `scheduling_constraints` schema and the `/admin/settings`
+      UI already let each row — default *and* every override — be independently enabled. Fixed by
+      reworking the type to `ConstraintRow[]` (one entry per DB row) with a proper resolution
+      rule: a matching override governs completely, including its own enabled flag, regardless of
+      the default's state (lets an admin scope a constraint to only one category, or exempt one
+      category from an otherwise-active constraint) — falls back to the default only when no
+      override matches. Added 2 more unit tests for this exact behavior; still all passing
+      (21 total now).
+
+      `buildHeuristicInputForWindow` (in `actions.ts`) assembles `HeuristicInput` from real
+      queries — only *unpublished* shifts in the window get (re)generated; existing assignments
+      on shifts outside this window still count toward double-booking. `generateSchedule` always
+      clears and replaces (not merges) a window's unpublished assignments on every run — a
+      deliberate "fresh start" choice, guarded by a confirm dialog in the UI since it can wipe
+      manual edits. Unfilled-slot counts and `prefer_avoid` conflicts are both **computed at read
+      time** from current `assignments` + `worker_pairing_preferences` (same convention as
+      qualification expiry / understaffed-shift detection elsewhere) — not stored from the
+      `generateSchedule` call — so they stay accurate through manual edits and remain visible
+      after publish too, which is the actual requirement, not just "show them once after
+      generating." Manual add/remove (`addAssignment`/`removeAssignment`) are deliberately
+      unvalidated against qualifications/availability/rest constraints — the review step's whole
+      point is the admin has final say to fix what the heuristic couldn't.
+
+      Verified end-to-end in a real browser with a realistic scenario (2 workers, both qualified
+      and available for one 2-headcount shift, a `prefer_avoid` pairing between them so the only
+      way to fill the shift creates a flagged conflict): generate correctly produced 2/2 filled
+      with the conflict banner showing the right pair and shift; manually removing one worker
+      correctly dropped to 1/2 and cleared the conflict banner (recomputed live, not cached);
+      re-adding them correctly restored both — proving the conflict flag really is live-computed,
+      not a stale snapshot. No console errors. All test data cleaned up afterward.
 - [ ] 💻 Admin: publish the finalized schedule — flagged `prefer_avoid` conflicts must remain
       visible somewhere after publish too, not just on the pre-publish review screen
 - [ ] 💻 Worker: in-app notification of newly published/assigned shifts

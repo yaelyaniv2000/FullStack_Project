@@ -46,12 +46,19 @@ export type HeuristicWorker = {
   existingAssignedDates: string[];
 };
 
-export type ConstraintInput = {
+/**
+ * One row per scheduling_constraints DB row -- qualificationOptionId null is the type's default,
+ * non-null is a per-category override. Each row (default AND override) carries its OWN `enabled`
+ * flag, matching the actual schema (see the /admin/settings ConstraintTypeEditor, which lets an
+ * admin toggle a category's override on/off independently of the default). This is why it's an
+ * array of rows here rather than one enabled/value pair per type -- a constraint can be enabled
+ * only for a specific category while off for everyone else, or vice versa.
+ */
+export type ConstraintRow = {
   type: ConstraintType;
+  qualificationOptionId: string | null;
   enabled: boolean;
-  defaultValue: number;
-  /** qualificationOptionId -> value, for workers holding that option. */
-  overridesByQualificationOptionId: Record<string, number>;
+  value: number;
 };
 
 export type PairingInput = {
@@ -63,7 +70,7 @@ export type PairingInput = {
 export type HeuristicInput = {
   slots: HeuristicSlot[];
   workers: HeuristicWorker[];
-  constraints: ConstraintInput[];
+  constraints: ConstraintRow[];
   pairings: PairingInput[];
 };
 
@@ -121,17 +128,36 @@ function buildWorkerState(worker: HeuristicWorker): WorkerState {
   };
 }
 
-/** "Most specific matching override, else default" -- if a worker somehow matches more than one
- * override for the same constraint (e.g. two different qualifications both have an override),
- * the most restrictive value wins (max for min_rest_hours -- more rest required; min for
- * max_shifts_per_window -- fewer shifts allowed), so an override can never accidentally loosen a
- * constraint relative to another applicable override. */
-function effectiveConstraintValue(constraint: ConstraintInput, state: WorkerState): number {
-  const matches = Object.entries(constraint.overridesByQualificationOptionId)
-    .filter(([optionId]) => state.optionIds.has(optionId))
-    .map(([, value]) => value);
-  const candidates = matches.length > 0 ? matches : [constraint.defaultValue];
-  return constraint.type === "min_rest_hours" ? Math.max(...candidates) : Math.min(...candidates);
+/**
+ * Resolves a worker's effective enabled/value for one constraint type. If the worker holds an
+ * option with a matching override row, that override governs completely -- including its OWN
+ * enabled flag -- regardless of the default row's state. This lets an admin scope a constraint to
+ * only a category (default disabled, override enabled) or exempt a category from an
+ * otherwise-active constraint (default enabled, override disabled). Only falls back to the
+ * default row when the worker matches no override at all. Among multiple matching *enabled*
+ * overrides (e.g. two different qualifications both happen to have one), the most restrictive
+ * value wins (max for min_rest_hours -- more rest required; min for max_shifts_per_window --
+ * fewer shifts allowed), so one override can never accidentally loosen another.
+ */
+function effectiveConstraint(
+  type: ConstraintType,
+  state: WorkerState,
+  rows: ConstraintRow[],
+): { enabled: boolean; value: number } | null {
+  const rowsForType = rows.filter((r) => r.type === type);
+  const matchingOverrides = rowsForType.filter(
+    (r) => r.qualificationOptionId !== null && state.optionIds.has(r.qualificationOptionId),
+  );
+
+  if (matchingOverrides.length > 0) {
+    const enabled = matchingOverrides.filter((r) => r.enabled);
+    if (enabled.length === 0) return { enabled: false, value: 0 };
+    const values = enabled.map((r) => r.value);
+    return { enabled: true, value: type === "min_rest_hours" ? Math.max(...values) : Math.min(...values) };
+  }
+
+  const defaultRow = rowsForType.find((r) => r.qualificationOptionId === null);
+  return defaultRow ? { enabled: defaultRow.enabled, value: defaultRow.value } : null;
 }
 
 /** Run-in-progress state, mutated as slots get assigned. */
@@ -178,10 +204,12 @@ function satisfiesMinRest(
   return true;
 }
 
+const CONSTRAINT_TYPES: ConstraintType[] = ["min_rest_hours", "max_shifts_per_window"];
+
 function isEligible(
   state: WorkerState,
   slot: HeuristicSlot,
-  constraints: ConstraintInput[],
+  constraints: ConstraintRow[],
   pairings: PairingInput[],
   runState: RunState,
 ): boolean {
@@ -199,10 +227,11 @@ function isEligible(
     return false;
   }
 
-  for (const constraint of constraints) {
-    if (!constraint.enabled) continue;
-    const value = effectiveConstraintValue(constraint, state);
-    if (constraint.type === "min_rest_hours") {
+  for (const type of CONSTRAINT_TYPES) {
+    const resolved = effectiveConstraint(type, state, constraints);
+    if (!resolved || !resolved.enabled) continue;
+    const value = resolved.value;
+    if (type === "min_rest_hours") {
       if (!satisfiesMinRest(state, slot, runState, value)) return false;
     } else {
       const countSoFar = runState.assignmentCountByWorker.get(state.worker.id) ?? 0;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   runSchedulingHeuristic,
-  type ConstraintInput,
+  type ConstraintRow,
   type HeuristicSlot,
   type HeuristicWorker,
 } from "../heuristic";
@@ -29,12 +29,14 @@ function slot(overrides: Partial<HeuristicSlot> = {}): HeuristicSlot {
   };
 }
 
-function constraint(overrides: Partial<ConstraintInput> = {}): ConstraintInput {
+/** Builds a single default row (qualificationOptionId: null) by default -- pass
+ * `qualificationOptionId` to build an override row instead. */
+function constraintRow(overrides: Partial<ConstraintRow> = {}): ConstraintRow {
   return {
     type: "min_rest_hours",
+    qualificationOptionId: null,
     enabled: false,
-    defaultValue: 8,
-    overridesByQualificationOptionId: {},
+    value: 8,
     ...overrides,
   };
 }
@@ -143,7 +145,7 @@ describe("min_rest_hours constraint", () => {
     const result = runSchedulingHeuristic({
       slots: twoHourGapSlots,
       workers: [worker("w1", { availableShiftIds: ["shift-1", "shift-2"] })],
-      constraints: [constraint({ enabled: false, defaultValue: 10 })],
+      constraints: [constraintRow({ enabled: false, value: 10 })],
       pairings: [],
     });
     expect(result.assignments).toHaveLength(2);
@@ -153,7 +155,7 @@ describe("min_rest_hours constraint", () => {
     const result = runSchedulingHeuristic({
       slots: twoHourGapSlots,
       workers: [worker("w1", { availableShiftIds: ["shift-1", "shift-2"] })],
-      constraints: [constraint({ enabled: true, defaultValue: 10 })],
+      constraints: [constraintRow({ enabled: true, value: 10 })],
       pairings: [],
     });
     // The scarcity sort fills whichever slot is tied for hardest first; either way only one of
@@ -170,11 +172,8 @@ describe("min_rest_hours constraint", () => {
       slot({ shiftId: "shift-2", positionId: "pos-b", date: "2026-09-02", startTime: "08:00", endTime: "16:00" }),
     ];
     const constraints = [
-      constraint({
-        enabled: true,
-        defaultValue: 8, // regular worker: 10h gap is enough
-        overridesByQualificationOptionId: { reserve: 16 }, // reserve worker: 10h gap is NOT enough
-      }),
+      constraintRow({ enabled: true, value: 8 }), // regular worker: 10h gap is enough
+      constraintRow({ qualificationOptionId: "reserve", enabled: true, value: 16 }), // reserve: 10h is NOT enough
     ];
 
     const regular = runSchedulingHeuristic({
@@ -199,6 +198,49 @@ describe("min_rest_hours constraint", () => {
     expect(reserve.assignments).toHaveLength(1);
     expect(reserve.unfilledSlots).toHaveLength(1);
   });
+
+  test("an override can EXEMPT its category even while the default stays enabled for everyone else", () => {
+    const constraints = [
+      constraintRow({ enabled: true, value: 10 }), // default: enforced
+      constraintRow({ qualificationOptionId: "exempt", enabled: false, value: 10 }), // this category: not enforced
+    ];
+
+    const result = runSchedulingHeuristic({
+      slots: twoHourGapSlots,
+      workers: [
+        worker("exempt-worker", {
+          availableShiftIds: ["shift-1", "shift-2"],
+          heldQualifications: [{ qualificationId: "service-type", optionId: "exempt" }],
+        }),
+      ],
+      constraints,
+      pairings: [],
+    });
+    // A disabled override governs completely for that category -- the enabled default doesn't
+    // leak through, so both slots get filled despite the (real) 2-hour gap.
+    expect(result.assignments).toHaveLength(2);
+  });
+
+  test("an override can enable a constraint for only one category while the default stays disabled", () => {
+    const constraints = [
+      constraintRow({ enabled: false, value: 10 }), // default: not enforced
+      constraintRow({ qualificationOptionId: "restricted", enabled: true, value: 10 }), // this category: enforced
+    ];
+
+    const result = runSchedulingHeuristic({
+      slots: twoHourGapSlots,
+      workers: [
+        worker("restricted-worker", {
+          availableShiftIds: ["shift-1", "shift-2"],
+          heldQualifications: [{ qualificationId: "service-type", optionId: "restricted" }],
+        }),
+      ],
+      constraints,
+      pairings: [],
+    });
+    expect(result.assignments).toHaveLength(1);
+    expect(result.unfilledSlots).toHaveLength(1);
+  });
 });
 
 describe("max_shifts_per_window constraint", () => {
@@ -213,7 +255,7 @@ describe("max_shifts_per_window constraint", () => {
       slots,
       workers: [worker("w1", { availableShiftIds: ["s1", "s2", "s3", "s4"] })],
       constraints: [
-        { type: "max_shifts_per_window", enabled: true, defaultValue: 3, overridesByQualificationOptionId: {} },
+        constraintRow({ type: "max_shifts_per_window", enabled: true, value: 3 }),
       ],
       pairings: [],
     });
