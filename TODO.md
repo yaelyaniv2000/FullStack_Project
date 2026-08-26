@@ -412,22 +412,42 @@ is the right tool specifically here, not a general policy change for every futur
       errors after the remount-key fix. All test data (constraints reset to seeded defaults,
       pairing deleted, second test worker's auth account deleted, `expiring_soon_days` reset to
       30) cleaned up afterward.
-- [ ] 💻 Implement the matching heuristic:
-      - Eligibility (step 2): qualifications + availability + no double-booking + enabled
-        constraints, each resolved to the worker's most specific matching value (their
-        qualification-option override if one exists, else the type's default) + hard `avoid`
-        pairing exclusion (ineligible if a hard-avoid partner is already on a different position
-        of the same shift, this run)
-      - Tiebreak (step 4): fewest-assignments-so-far blended with pairing score (`prefer` partner
-        already on the shift = boost, `prefer_avoid` partner already on the shift = penalize but
-        don't exclude)
-      - Track and surface every `prefer_avoid` pair that still ended up together, for the
-        flagging requirement above
-- [ ] 💻 Unit tests (Vitest, set up above): each constraint type (disabled = no effect; enabled =
-      correctly excludes ineligible workers; per-category override picks the right value over the
-      default); all three pairing types (hard avoid never pairs even if it unfills a slot; soft
-      avoid pairs only when it's the only option, and gets flagged; prefer influences the
-      tiebreak)
+- [X] 💻 Implement the matching heuristic + unit tests — `features/scheduling/heuristic.ts`,
+      built and tested together since that's the whole point of bringing Vitest into this phase.
+      `runSchedulingHeuristic` is a **pure function** — no DB calls, no `"use server"` — takes
+      already-fetched slots/workers/constraints/pairings as plain data, returns
+      `{ assignments, unfilledSlots, softAvoidConflicts }`. `generateSchedule` (the actual Server
+      Action that fetches from the DB, calls this, and writes the result) is intentionally a
+      **separate**, not-yet-built task below — keeping the pure logic isolated from I/O is what
+      makes it unit-testable at all.
+
+      Matches `docs/technical-plan.md`'s algorithm exactly: flatten to slots → eligibility
+      (qualifications + availability + no double-booking + enabled constraints resolved to each
+      worker's effective per-category value + hard `avoid` pairing exclusion) → scarcity sort
+      (computed once up front, not re-evaluated mid-run) → greedy assign scored by
+      fewest-assignments-so-far adjusted for `prefer`/`prefer_avoid` → flag unfilled slots and
+      every `prefer_avoid` pair that still ended up together.
+
+      One real, non-obvious design resolution: `min_rest_hours` can only ever matter across
+      *different* dates, since the double-booking rule already blocks two assignments on the same
+      date outright regardless of this constraint — same-date test scenarios for "does the rest
+      gap get enforced" are structurally impossible to write, they'd always fail on
+      double-booking first. Discovered this via the tests themselves (see below), not by
+      reasoning about it in advance.
+
+      19 Vitest unit tests (`features/scheduling/__tests__/heuristic.test.ts`), all passing:
+      qualification matching (incl. wrong-option-doesn't-satisfy), availability, double-booking
+      (both pre-existing and within-run), `min_rest_hours` disabled/enabled/per-category-override,
+      `max_shifts_per_window`, all three pairing types (hard avoid unfills rather than pairing;
+      soft avoid pairs only when it's the only option and gets flagged; soft avoid does NOT pair
+      when an alternative exists; prefer wins the tiebreak), fairness tiebreak spreads load, and
+      scarcity ordering fills the scarce slot even when a more-open slot is also contending.
+      **Two tests genuinely failed on the first run** — not algorithm bugs, my own test-scenario
+      date/time math was wrong (a "2-hour gap" that was actually 26 hours; an override scenario
+      where both slots landed on the same date, so double-booking blocked it before the rest
+      constraint was ever exercised). Exactly the kind of mistake manual browser verification
+      would have been slow to catch and unit tests caught immediately — the concrete payoff this
+      test-infra decision was made for.
 - [ ] 💻 Admin: review the proposed schedule, manually reassign/fix unfilled shifts, see flagged
       `prefer_avoid` conflicts
 - [ ] 💻 Admin: publish the finalized schedule — flagged `prefer_avoid` conflicts must remain
