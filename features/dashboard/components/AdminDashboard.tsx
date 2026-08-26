@@ -6,6 +6,7 @@ import {
   listPendingApprovals,
   listExpiringQualifications,
 } from "@/features/worker-qualifications/queries";
+import { listActivePairingConflicts } from "@/features/scheduling/queries";
 import { getAppSettings } from "@/features/settings/queries";
 
 /**
@@ -16,11 +17,12 @@ import { getAppSettings } from "@/features/settings/queries";
  */
 export async function AdminDashboard() {
   const { expiringSoonDays } = await getAppSettings();
-  const [understaffed, pending, upcoming, expiring] = await Promise.all([
+  const [understaffed, pending, upcoming, expiring, pairingConflicts] = await Promise.all([
     listUnderstaffedShifts(5),
     listPendingApprovals(5),
     listUpcomingShifts(5),
     listExpiringQualifications(expiringSoonDays, 5),
+    listActivePairingConflicts(5),
   ]);
 
   return (
@@ -130,6 +132,33 @@ export async function AdminDashboard() {
                     {e.workerName}
                   </Link>{" "}
                   — {e.qualificationName} · <span dir="ltr">{e.expiresOn}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            התנגשויות העדפת שיבוץ
+            {pairingConflicts.length > 0 ? (
+              <Badge variant="destructive">{pairingConflicts.length}</Badge>
+            ) : null}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {pairingConflicts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">אין התנגשויות העדפה במשמרות קרובות.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {pairingConflicts.map((c, i) => (
+                <li key={`${c.shiftId}-${i}`} className="text-sm">
+                  <Link href={`/admin/schedule/${c.windowId}`} className="hover:underline">
+                    {c.workerName1} × {c.workerName2}
+                  </Link>{" "}
+                  · <span dir="ltr">{c.date} {c.startTime.slice(0, 5)}</span>
                 </li>
               ))}
             </ul>

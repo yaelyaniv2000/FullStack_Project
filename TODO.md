@@ -485,12 +485,61 @@ is the right tool specifically here, not a general policy change for every futur
       correctly dropped to 1/2 and cleared the conflict banner (recomputed live, not cached);
       re-adding them correctly restored both — proving the conflict flag really is live-computed,
       not a stale snapshot. No console errors. All test data cleaned up afterward.
-- [ ] 💻 Admin: publish the finalized schedule — flagged `prefer_avoid` conflicts must remain
-      visible somewhere after publish too, not just on the pre-publish review screen
-- [ ] 💻 Worker: in-app notification of newly published/assigned shifts
-- [ ] 💻 Automatic qualification renewal: once a shift's date has passed, extend the expiry of
-      any qualification tied to a position an assigned worker fulfilled (document the "shift
-      date passed = completed" simplifying assumption)
+- [X] 💻 Admin: publish the finalized schedule — flagged `prefer_avoid` conflicts must remain
+      visible somewhere after publish too, not just on the pre-publish review screen.
+
+      `publishShift`/`unpublishShift` (per-shift, not whole-window — an admin can resolve one
+      gap with a phone call and publish just that shift separately) + `publishAllShiftsInWindow`
+      (bulk convenience over the same per-shift logic) in `features/scheduling/actions.ts`.
+      `getScheduleReview` already pulled *all* shifts in a window regardless of `published_at`
+      and computed conflicts at read time (Phase 5's earlier task), so the review screen
+      satisfied "visible after publish too" with no changes needed — verified this directly by
+      re-fetching the review page after publishing and confirming the conflict banner still
+      showed. Added a second surface anyway: `listActivePairingConflicts` (all upcoming shifts,
+      not scoped to one window) feeds a new 5th card on `/dashboard`, so a flagged conflict is
+      visible without the admin having to already be on the right window's review page.
+
+      Publishing writes one `notifications` row per assigned worker (see the notifications task
+      below) — best-effort, doesn't roll back the publish if the write fails.
+
+      **Verified against the real running dev server, not just build-passing** — Playwright
+      can't install a browser on this machine (`mac13-arm64` unsupported by the pinned version),
+      so verification used `@supabase/ssr`'s own `createServerClient` with an in-memory cookie
+      jar to mint a real session cookie (byte-identical to what the app itself produces, same
+      library code, not hand-rolled), then `curl -b` against `localhost:3000` for real
+      server-rendered HTML. Confirmed: bulk + per-shift publish buttons and published/draft
+      badges render on `/admin/schedule/[windowId]`; publishing a real draft shift with real
+      assignments correctly set `published_at`, wrote the right notification message, and made
+      it show up on the assigned worker's `/notifications`, `/dashboard`, and `/my-shifts`; the
+      dashboard's new conflict card correctly listed both shifts where the seeded demo's
+      `prefer_avoid` pair (see below) ended up scheduled together anyway. All test-only state
+      (one temporary shift, its notifications) cleaned up after.
+- [X] 💻 Worker: in-app notification of newly published/assigned shifts — `features/notifications/`
+      (new domain: `queries.ts`, `actions.ts`, `components/NotificationsList.tsx`), `/notifications`
+      page, added to `WORKER_LINKS`. RLS policies and grants for `notifications` already existed
+      from the Phase 2 migration (written ahead of need) — confirmed by grepping, nothing to add
+      at the DB level. A "התראות" card was also added to the worker home screen
+      (`WorkerDashboard.tsx`, same "3 most recent + link to see all" pattern as the shifts card),
+      showing an unread-count badge. Mark-as-read and mark-all-as-read both wired up.
+- [X] 💻 Automatic qualification renewal: once a shift's date has passed, extend the expiry of
+      any qualification tied to a position an assigned worker fulfilled.
+
+      Per CLAUDE.md's "computed at read time, not stored" rule — this is a **query-layer
+      change**, not a background job. `features/worker-qualifications/queries.ts` gained
+      `getLatestRenewalDates()`: joins `position_renews_qualifications` against `assignments` +
+      `shifts`, keeping the latest date per `(worker, qualification)` among shifts that are
+      published *and* whose end time has passed (matches CLAUDE.md's "completed" definition
+      exactly, not the simplified "date passed" wording this checklist item used). Both
+      `listWorkerQualifications` and `listExpiringQualifications` now take
+      `max(obtained_at, latest completed renewing shift)` instead of just `obtained_at`. Removed
+      the "doesn't fold in shift-based renewal yet, revisit in Phase 5" comment this was
+      tracking since Phase 3.
+
+      **Verified against the real dev server**: seeded a completed, published shift (2 days ago)
+      where עידן כהן fulfilled טייס (a position that renews "בדיקה 1", 11-day interval).
+      `/dashboard`'s expiring-soon card correctly moved his expiry from 2026-08-28 (the old
+      `obtained_at`-only date) to 2026-09-04 (completed-shift-date + 11), confirmed via the same
+      cookie-jar + curl method as above. Cleaned up the test shift after.
 - [ ] 🔌 *(optional, only if you decide to support it)* connect an email/SMS provider for
       off-app notifications — treat as a stretch goal, not core scope
 

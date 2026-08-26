@@ -1,20 +1,24 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { listMyUpcomingShifts } from "@/features/shifts/queries";
 import { listWorkerQualifications } from "@/features/worker-qualifications/queries";
 import { listOpenWindowsWithShifts } from "@/features/availability/queries";
+import { listMyNotifications } from "@/features/notifications/queries";
 import { MyQualificationsList } from "@/features/worker-qualifications/components/MyQualificationsList";
 
 /** The worker's home screen (per user feedback 2026-08-25: no longer a nav-menu item, the logo
- * click leads here -- see AppHeader). Assembles three already-built data sources; no new
- * queries beyond limiting/reusing what /my-shifts, /my-qualifications, /availability already
- * expose. */
+ * click leads here -- see AppHeader). Assembles already-built data sources; no new queries
+ * beyond limiting/reusing what /my-shifts, /my-qualifications, /availability, /notifications
+ * already expose. */
 export async function WorkerDashboard({ workerId }: { workerId: string }) {
-  const [shifts, qualifications, openWindows] = await Promise.all([
+  const [shifts, qualifications, openWindows, notifications] = await Promise.all([
     listMyUpcomingShifts(workerId),
     listWorkerQualifications(workerId),
     listOpenWindowsWithShifts(workerId),
+    listMyNotifications(workerId),
   ]);
+  const unreadNotifications = notifications.filter((n) => !n.readAt);
 
   return (
     <div className="flex flex-col gap-4">
@@ -60,6 +64,33 @@ export async function WorkerDashboard({ workerId }: { workerId: string }) {
         </CardHeader>
         <CardContent>
           <MyQualificationsList qualifications={qualifications} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            התראות
+            {unreadNotifications.length > 0 ? (
+              <Badge variant="default">{unreadNotifications.length}</Badge>
+            ) : null}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {notifications.length === 0 ? (
+            <p className="text-sm text-muted-foreground">אין לך עדיין התראות.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {notifications.slice(0, 3).map((n) => (
+                <li key={n.id} className="text-sm">
+                  {n.message}
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link href="/notifications" className="text-sm text-muted-foreground hover:underline">
+            לכל ההתראות ←
+          </Link>
         </CardContent>
       </Card>
     </div>

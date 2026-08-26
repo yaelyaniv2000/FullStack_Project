@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getScheduleReview } from "@/features/scheduling/queries";
 import { listWorkers } from "@/features/accounts/queries";
 import { GenerateScheduleButton } from "@/features/scheduling/components/GenerateScheduleButton";
+import { PublishAllButton } from "@/features/scheduling/components/PublishAllButton";
 import { ScheduleShiftCard } from "@/features/scheduling/components/ScheduleShiftCard";
 
 export default async function ScheduleReviewPage({
@@ -30,10 +31,11 @@ export default async function ScheduleReviewPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>יצירת שיבוץ</CardTitle>
+          <CardTitle>יצירת שיבוץ ופרסום</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap gap-3">
           <GenerateScheduleButton windowId={windowId} />
+          <PublishAllButton windowId={windowId} />
         </CardContent>
       </Card>
 

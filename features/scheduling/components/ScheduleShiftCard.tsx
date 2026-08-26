@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { addAssignment, removeAssignment } from "../actions";
+import { PublishShiftButton } from "./PublishShiftButton";
 import type { ScheduleShift } from "../queries";
 import type { Profile } from "@/lib/auth";
 
@@ -108,7 +108,7 @@ export function ScheduleShiftCard({
 }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-2">
           <span dir="ltr">
             {shift.date} · {shift.startTime.slice(0, 5)}–{shift.endTime.slice(0, 5)}
@@ -117,6 +117,7 @@ export function ScheduleShiftCard({
             {shift.publishedAt ? "פורסמה" : "טיוטה"}
           </Badge>
         </CardTitle>
+        <PublishShiftButton windowId={windowId} shiftId={shift.shiftId} published={!!shift.publishedAt} />
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {shift.positions.length === 0 ? (

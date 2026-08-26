@@ -14,4 +14,5 @@ export const WORKER_LINKS: NavLink[] = [
   { href: "/my-qualifications", label: "הכשירויות שלי" },
   { href: "/availability", label: "הגשת זמינות" },
   { href: "/my-shifts", label: "המשמרות שלי" },
+  { href: "/notifications", label: "התראות" },
 ];

@@ -229,3 +229,77 @@ export async function getScheduleReview(windowId: string): Promise<ScheduleRevie
 
   return { windowId: window.id, windowLabel: window.label, shifts: scheduleShifts, conflicts };
 }
+
+export type ActivePairingConflict = {
+  shiftId: string;
+  windowId: string;
+  date: string;
+  startTime: string;
+  workerName1: string;
+  workerName2: string;
+};
+
+type RawUpcomingShift = {
+  id: string;
+  date: string;
+  start_time: string;
+  availability_window_id: string | null;
+};
+
+/**
+ * Every `prefer_avoid` pair currently co-assigned on an upcoming shift, across all windows --
+ * the dashboard-level counterpart to getScheduleReview's per-window conflicts, so a flagged
+ * conflict stays visible somewhere even after publish (see CLAUDE.md's pairing-preferences
+ * bullet), not just on the review screen for the one window an admin happens to be looking at.
+ * Computed at read time from current assignments, same convention as everywhere else.
+ */
+export async function listActivePairingConflicts(limit: number): Promise<ActivePairingConflict[]> {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data: pairingRows } = await supabase
+    .from("worker_pairing_preferences")
+    .select(
+      `worker_id_1, worker_id_2,
+      worker1:profiles!worker_pairing_preferences_worker_id_1_fkey(full_name),
+      worker2:profiles!worker_pairing_preferences_worker_id_2_fkey(full_name)`,
+    )
+    .eq("preference", "prefer_avoid");
+  if (!pairingRows || pairingRows.length === 0) return [];
+
+  const { data: shifts } = await supabase
+    .from("shifts")
+    .select("id, date, start_time, availability_window_id")
+    .gte("date", today)
+    .not("availability_window_id", "is", null);
+  if (!shifts || shifts.length === 0) return [];
+
+  const { data: assignmentRows } = await supabase
+    .from("assignments")
+    .select("shift_id, worker_id")
+    .in(
+      "shift_id",
+      shifts.map((s) => s.id),
+    );
+
+  const conflicts: ActivePairingConflict[] = [];
+  for (const shift of (shifts as unknown as RawUpcomingShift[]) ?? []) {
+    const assignedWorkerIds = new Set(
+      (assignmentRows ?? []).filter((a) => a.shift_id === shift.id).map((a) => a.worker_id),
+    );
+    for (const pairing of (pairingRows as unknown as RawPreferAvoidPairing[]) ?? []) {
+      if (assignedWorkerIds.has(pairing.worker_id_1) && assignedWorkerIds.has(pairing.worker_id_2)) {
+        conflicts.push({
+          shiftId: shift.id,
+          windowId: shift.availability_window_id!,
+          date: shift.date,
+          startTime: shift.start_time,
+          workerName1: pairing.worker1?.full_name ?? "",
+          workerName2: pairing.worker2?.full_name ?? "",
+        });
+      }
+    }
+  }
+
+  return conflicts.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)).slice(0, limit);
+}

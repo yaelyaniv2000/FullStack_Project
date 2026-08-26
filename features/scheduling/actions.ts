@@ -392,4 +392,125 @@ export async function removeAssignment(
   return { success: true, data: undefined };
 }
 
+type NotifiableShift = { id: string; date: string; start_time: string; end_time: string };
+
+/** Writes one notification per worker assigned to any of these shifts -- called right after a
+ * publish, since that's the moment a shift's assignments become real/visible to the worker
+ * (see CLAUDE.md's `assignments` has no status column, publish-timing rule). Best-effort: a
+ * notification write failing doesn't roll back the publish itself. */
+async function notifyAssignedWorkers(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  shifts: NotifiableShift[],
+): Promise<void> {
+  if (shifts.length === 0) return;
+  const { data: assignments } = await supabase
+    .from("assignments")
+    .select("shift_id, worker_id, position:positions!assignments_position_id_fkey(name)")
+    .in("shift_id", shifts.map((s) => s.id));
+  if (!assignments || assignments.length === 0) return;
+
+  await supabase.from("notifications").insert(
+    assignments.map((a) => {
+      const shift = shifts.find((s) => s.id === a.shift_id)!;
+      const base = `שובצת למשמרת ${shift.date} ${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}`;
+      return {
+        worker_id: a.worker_id,
+        shift_id: a.shift_id,
+        message: a.position?.name ? `${base} · ${a.position.name}` : base,
+      };
+    }),
+  );
+}
+
+function revalidateAfterPublishChange(windowId: string) {
+  revalidatePath(`/admin/schedule/${windowId}`);
+  revalidatePath("/admin/shifts");
+  revalidatePath("/my-shifts");
+  revalidatePath("/dashboard");
+}
+
+/** Publishes one shift (no-op if already published) and notifies every worker assigned to it.
+ * Per-shift, not whole-window, on purpose -- an admin should be able to resolve one shift (e.g.
+ * a phone call to fill a gap) before publishing it separately from the rest of the window. */
+export async function publishShift(windowId: string, shiftId: string): Promise<Result<void>> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: shift } = await supabase
+    .from("shifts")
+    .select("id, date, start_time, end_time, published_at")
+    .eq("id", shiftId)
+    .single();
+  if (!shift) {
+    return { success: false, error: "המשמרת לא נמצאה" };
+  }
+  if (shift.published_at) {
+    return { success: true, data: undefined };
+  }
+
+  const { error } = await supabase
+    .from("shifts")
+    .update({ published_at: new Date().toISOString() })
+    .eq("id", shiftId);
+  if (error) {
+    return { success: false, error: "שגיאה בפרסום המשמרת" };
+  }
+
+  await notifyAssignedWorkers(supabase, [shift]);
+
+  revalidateAfterPublishChange(windowId);
+  return { success: true, data: undefined };
+}
+
+/** Reverts a mistaken publish -- RLS's publish-timing rule means workers immediately lose
+ * visibility of the shift again. Doesn't retract notifications already sent (they're a factual
+ * historical record of what was announced, not a live view). */
+export async function unpublishShift(windowId: string, shiftId: string): Promise<Result<void>> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("shifts")
+    .update({ published_at: null })
+    .eq("id", shiftId);
+  if (error) {
+    return { success: false, error: "שגיאה בביטול הפרסום" };
+  }
+
+  revalidateAfterPublishChange(windowId);
+  return { success: true, data: undefined };
+}
+
+export type PublishAllResult = { publishedCount: number };
+
+/** Bulk convenience over publishShift -- publishes every still-unpublished shift in the window
+ * in one action, for the common case of "generate, review, publish everything at once." */
+export async function publishAllShiftsInWindow(windowId: string): Promise<Result<PublishAllResult>> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: shifts } = await supabase
+    .from("shifts")
+    .select("id, date, start_time, end_time")
+    .eq("availability_window_id", windowId)
+    .is("published_at", null);
+  if (!shifts || shifts.length === 0) {
+    return { success: true, data: { publishedCount: 0 } };
+  }
+  const shiftIds = shifts.map((s) => s.id);
+
+  const { error } = await supabase
+    .from("shifts")
+    .update({ published_at: new Date().toISOString() })
+    .in("id", shiftIds);
+  if (error) {
+    return { success: false, error: "שגיאה בפרסום המשמרות" };
+  }
+
+  await notifyAssignedWorkers(supabase, shifts);
+
+  revalidateAfterPublishChange(windowId);
+  return { success: true, data: { publishedCount: shiftIds.length } };
+}
+
 export type { ConstraintType, PairingPreference };
