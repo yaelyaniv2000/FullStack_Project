@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -39,6 +39,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          expiring_soon_days: number
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          expiring_soon_days?: number
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          expiring_soon_days?: number
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       assignments: {
         Row: {
           created_at: string
@@ -366,6 +384,41 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduling_constraints: {
+        Row: {
+          enabled: boolean
+          id: string
+          qualification_option_id: string | null
+          type: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          enabled?: boolean
+          id?: string
+          qualification_option_id?: string | null
+          type: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          enabled?: boolean
+          id?: string
+          qualification_option_id?: string | null
+          type?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduling_constraints_qualification_option_id_fkey"
+            columns: ["qualification_option_id"]
+            isOneToOne: false
+            referencedRelation: "qualification_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_positions: {
         Row: {
           headcount_needed: number
@@ -487,6 +540,45 @@ export type Database = {
             columns: ["availability_window_id"]
             isOneToOne: false
             referencedRelation: "availability_windows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worker_pairing_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          preference: string
+          worker_id_1: string
+          worker_id_2: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          preference: string
+          worker_id_1: string
+          worker_id_2: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          preference?: string
+          worker_id_1?: string
+          worker_id_2?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_pairing_preferences_worker_id_1_fkey"
+            columns: ["worker_id_1"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_pairing_preferences_worker_id_2_fkey"
+            columns: ["worker_id_2"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

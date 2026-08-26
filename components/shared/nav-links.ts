@@ -7,6 +7,7 @@ export const ADMIN_LINKS: NavLink[] = [
   { href: "/admin/shifts", label: "משמרות" },
   { href: "/admin/availability-windows", label: "חלונות זמינות" },
   { href: "/admin/personnel", label: "אנשי צוות" },
+  { href: "/admin/settings", label: "הגדרות" },
 ];
 
 export const WORKER_LINKS: NavLink[] = [

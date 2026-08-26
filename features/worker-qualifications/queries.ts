@@ -119,12 +119,6 @@ type ExpiringRow = {
   qualifications: { name: string; renewal_interval_days: number | null } | null;
 };
 
-/**
- * "Expiring soon" threshold (days) isn't resolved yet -- open question in docs/product-spec.md.
- * 30 is a reasonable placeholder default; revisit once the squadron gives a real answer.
- */
-export const EXPIRING_SOON_DAYS = 30;
-
 export async function listExpiringQualifications(
   withinDays: number,
   limit: number,

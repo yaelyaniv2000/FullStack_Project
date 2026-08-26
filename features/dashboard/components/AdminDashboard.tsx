@@ -5,8 +5,8 @@ import { listUnderstaffedShifts, listUpcomingShifts } from "@/features/shifts/qu
 import {
   listPendingApprovals,
   listExpiringQualifications,
-  EXPIRING_SOON_DAYS,
 } from "@/features/worker-qualifications/queries";
+import { getAppSettings } from "@/features/settings/queries";
 
 /**
  * The admin's landing page: what needs attention, not just a pile of CRUD links (see
@@ -15,11 +15,12 @@ import {
  * have real data to query -- see the TODO.md ordering note.
  */
 export async function AdminDashboard() {
+  const { expiringSoonDays } = await getAppSettings();
   const [understaffed, pending, upcoming, expiring] = await Promise.all([
     listUnderstaffedShifts(5),
     listPendingApprovals(5),
     listUpcomingShifts(5),
-    listExpiringQualifications(EXPIRING_SOON_DAYS, 5),
+    listExpiringQualifications(expiringSoonDays, 5),
   ]);
 
   return (

@@ -336,20 +336,82 @@ original single-value-per-type design:**
 
 ---
 
-- [ ] 💻 `scheduling_constraints` table: add `qualification_option_id` (nullable FK to
-      `qualification_options`, default-row-per-type has it null) + migration seeding
-      `min_rest_hours`/`max_shifts_per_window` default rows (disabled by default)
-- [ ] 💻 `worker_pairing_preferences` table: `worker_id_1`, `worker_id_2` (canonical ordering,
-      `worker_id_1 < worker_id_2`, unique pair), `preference` (`avoid` / `prefer_avoid` / `prefer`)
-- [ ] 💻 App-settings value for `EXPIRING_SOON_DAYS` (small key/value or dedicated column —
-      decide exact storage shape during implementation) + wire the dashboard widget to read it
-      instead of the hardcoded constant
-- [ ] 💻 Admin: unified `/admin/settings` page — constraints section (enable/tune + per-category
-      override rows, days+hours input for `min_rest_hours`), pairing-preferences section
-      (add/remove pairs + type), expiring-soon-days setting. Update-only for constraints (no
-      create/delete of constraint *types* from the UI, per the existing narrow-settings-page
-      decision — pairing rows themselves ARE creatable/deletable, since they're admin data, not
-      algorithm types)
+**Test-infra sequencing decided 2026-08-27 (user question → discussion):** Vitest is being
+brought forward into this phase, unit-test scope only (not the full Phase 6 setup — no React
+Testing Library, no Playwright yet). Reasoning: every feature so far was verified by writing a
+disposable Playwright script against a real browser, checking the result, then deleting the
+script — that works well for UI-heavy CRUD, but the heuristic is pure logic with a lot of
+interacting rules (2 constraint types × per-category overrides × 3 pairing types × scarcity
+ordering × fairness tiebreak). Manually re-verifying that combination on every change would be
+slow and error-prone in a way the rest of this project hasn't been; a kept, rerunnable unit test
+is the right tool specifically here, not a general policy change for every future feature.
+
+- [X] 💻 Set up Vitest (unit-test scope only — install, config, one smoke test) so the heuristic
+      tests below have somewhere to live. `npm test` (single run) / `npm run test:watch`.
+      `vitest.config.mts` uses the native `resolve.tsconfigPaths` option (not the
+      `vite-tsconfig-paths` plugin — Vitest 4 flagged it as deprecated in favor of the native
+      option during setup, so installed then immediately removed it). No jsdom/React plugin yet
+      since these tests exercise plain functions, not components — added when Phase 6 brings in
+      React Testing Library. Smoke test: `lib/__tests__/utils.test.ts` (`cn()`, 3 cases) — not
+      meant as real coverage, just confirms the runner + `@/` path alias actually work; verified
+      by running `npm test` (3 passed) and `npm run build` (untouched, still passes).
+- [X] 💻 `scheduling_constraints` table + `worker_pairing_preferences` table —
+      `supabase/migrations/20260827090000_add_scheduling_constraints_and_pairings.sql`. Neither
+      table actually existed before this (only ever documented, not created — confirmed by
+      grepping every prior migration). `scheduling_constraints` gets `qualification_option_id`
+      (nullable FK) from day one, with partial unique indexes enforcing "at most one default row
+      per type, at most one override row per (type, option)" — same partial-index technique as
+      `worker_qualifications_active_unique` in the core schema. Seeded both default rows
+      (`min_rest_hours`=8, `max_shifts_per_window`=5), disabled. `worker_pairing_preferences` uses
+      a `check (worker_id_1 < worker_id_2)` to canonicalize pairs (one row regardless of UI
+      selection order) plus a unique constraint so a pair holds exactly one preference at a time.
+      Both tables admin-only for read *and* write (unlike qualifications/positions — workers have
+      no legitimate reason to see either, same shape as `shift_templates`). Regenerated
+      `types/database.types.ts`. **Verified directly against the real schema, not just written**:
+      duplicate default row rejected, override row accepted, duplicate override rejected,
+      reversed pair order rejected (check constraint), correct order accepted, duplicate pair
+      rejected, and RLS confirmed behaviorally with real signed-in sessions — worker gets an empty
+      result from both tables, admin sees everything.
+- [X] 💻 App-settings value for `EXPIRING_SOON_DAYS` + unified `/admin/settings` page — built
+      together since the page is what exercises the setting. `app_settings` (migration
+      `20260827093000_add_app_settings.sql`): a true singleton table (`unique index ((true))`
+      trick — at most one row, ever), explicit typed column (`expiring_soon_days`), not a generic
+      key/value table, matching the same "known, fixed set of settings" convention as
+      `scheduling_constraints`. `features/settings/` (deliberately separate from
+      `features/scheduling/`, per the earlier design decision). Removed the hardcoded
+      `EXPIRING_SOON_DAYS` constant from `features/worker-qualifications/queries.ts`; the admin
+      dashboard now reads the real setting via `getAppSettings()`.
+
+      `/admin/settings` composes three sections: scheduling constraints (`ConstraintTypeEditor` —
+      one instance per type, default row + per-category override rows + an "add override"
+      combobox scoped to qualification options not already overridden; days+hours inputs for
+      `min_rest_hours`, combined into total hours server-side), worker pairing preferences
+      (native `<select>`s deliberately, not the searchable-combobox pattern — a squadron roster
+      doesn't need search, and natives sidestep the whole class of "needs a hidden input to
+      submit via FormData" Base UI issues already hit twice), and the expiring-soon-days form.
+      `setSchedulingConstraint` does a manual find-then-write instead of a DB upsert — Postgres
+      can't target a *partial* unique index via `ON CONFLICT (columns) DO UPDATE` without also
+      repeating the index's `WHERE` predicate, which the Supabase JS client's `upsert()` doesn't
+      expose; `worker_pairing_preferences`' upsert works fine since that unique constraint isn't
+      partial.
+
+      **Real bug caught and fixed**: a new pattern for this codebase — these settings forms stay
+      mounted across a successful save and receive fresh server data via `revalidatePath` (unlike
+      every other form so far, which either unmounts on success (edit-mode forms close) or never
+      has its `defaultValue` actually change (create-only forms)). An already-mounted uncontrolled
+      `Input` receiving a *new* `defaultValue` triggered a genuine Base UI warning. Fixed by
+      keying each row/form on its own current value (e.g. `key={`${id}-${enabled}-${value}`}`) so
+      React remounts instead of mutating in place — same underlying idea as the `resetKey` pattern
+      used everywhere else, just triggered by a value change instead of only after every submit.
+
+      Verified thoroughly in a real browser end to end: days+hours (1d4h) correctly stored as 28,
+      a per-category override (2d0h) correctly stored as 48 and both confirmed via direct DB
+      read, override delete, `max_shifts_per_window` toggle, a real worker pairing added with a
+      second seeded test worker and confirmed persisted/deleted, expiring-soon-days edited and
+      confirmed both immediately (same page, no reload) and after a fresh reload — no console
+      errors after the remount-key fix. All test data (constraints reset to seeded defaults,
+      pairing deleted, second test worker's auth account deleted, `expiring_soon_days` reset to
+      30) cleaned up afterward.
 - [ ] 💻 Implement the matching heuristic:
       - Eligibility (step 2): qualifications + availability + no double-booking + enabled
         constraints, each resolved to the worker's most specific matching value (their
@@ -361,10 +423,11 @@ original single-value-per-type design:**
         don't exclude)
       - Track and surface every `prefer_avoid` pair that still ended up together, for the
         flagging requirement above
-- [ ] 💻 Unit tests: each constraint type (disabled = no effect; enabled = correctly excludes
-      ineligible workers; per-category override picks the right value over the default); all
-      three pairing types (hard avoid never pairs even if it unfills a slot; soft avoid pairs
-      only when it's the only option, and gets flagged; prefer influences the tiebreak)
+- [ ] 💻 Unit tests (Vitest, set up above): each constraint type (disabled = no effect; enabled =
+      correctly excludes ineligible workers; per-category override picks the right value over the
+      default); all three pairing types (hard avoid never pairs even if it unfills a slot; soft
+      avoid pairs only when it's the only option, and gets flagged; prefer influences the
+      tiebreak)
 - [ ] 💻 Admin: review the proposed schedule, manually reassign/fix unfilled shifts, see flagged
       `prefer_avoid` conflicts
 - [ ] 💻 Admin: publish the finalized schedule — flagged `prefer_avoid` conflicts must remain
@@ -378,9 +441,10 @@ original single-value-per-type design:**
 
 ## Phase 6 — Testing
 
-- [ ] 💻 Set up Vitest/Jest + React Testing Library + Playwright in the repo
-- [ ] 💻 Unit tests for the scheduling algorithm (qualification match, availability conflicts,
-      constraint enforcement, unfilled-shift edge cases)
+- [ ] 💻 Extend the Vitest setup (already installed in Phase 5 for the heuristic tests) with
+      React Testing Library + Playwright for component/e2e coverage
+- [ ] 💻 ~~Unit tests for the scheduling algorithm~~ — moved to Phase 5, see there (test-infra
+      sequencing decision, 2026-08-27)
 - [ ] 💻 Unit tests for qualification expiry/renewal logic (expiry computed correctly, renewal
       triggers only for the right position, doesn't renew for unrelated positions)
 - [ ] 💻 Tests for authorization boundaries (Admin-only actions blocked for Workers, a worker
