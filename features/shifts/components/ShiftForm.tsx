@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { createShift, updateShift, type ShiftState } from "@/features/shifts/actions";
 import type { Shift } from "@/features/shifts/queries";
 import type { ShiftTemplate } from "@/features/shift-templates/queries";
@@ -48,6 +58,7 @@ export function ShiftForm({
   const [pickerInitial, setPickerInitial] = useState<SelectedPosition[] | undefined>(
     shift?.positions,
   );
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
 
   useEffect(() => {
     if (state?.success) {
@@ -70,47 +81,82 @@ export function ShiftForm({
       {!shift && allTemplates.length > 0 ? (
         <div className="flex flex-col gap-2">
           <Label>התחלה מתבנית (אופציונלי)</Label>
-          <Select
-            onValueChange={(v) => handleTemplateChange(v as string)}
-            items={allTemplates.map((t) => ({ value: t.id, label: t.name }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="בחירת תבנית" />
-            </SelectTrigger>
-            <SelectContent>
-              {allTemplates.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={templateMenuOpen} onOpenChange={setTemplateMenuOpen}>
+            <PopoverTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-64 justify-between font-normal text-muted-foreground"
+                />
+              }
+            >
+              בחירת תבנית
+              <ChevronsUpDown className="size-4 opacity-50" />
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0">
+              <Command>
+                <CommandInput placeholder="חיפוש תבנית..." />
+                <CommandList>
+                  <CommandEmpty>לא נמצאו תבניות</CommandEmpty>
+                  <CommandGroup>
+                    {allTemplates.map((t) => (
+                      <CommandItem
+                        key={t.id}
+                        value={t.name}
+                        onSelect={() => {
+                          handleTemplateChange(t.id);
+                          setTemplateMenuOpen(false);
+                        }}
+                      >
+                        {t.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       ) : null}
 
       <div className="flex flex-col gap-2">
+        <Label htmlFor="name">שם המשמרת (אופציונלי)</Label>
+        <Input id="name" name="name" defaultValue={shift?.name ?? ""} />
+      </div>
+      <div className="flex flex-col gap-2">
         <Label htmlFor="date">תאריך</Label>
-        <Input id="date" name="date" type="date" dir="ltr" defaultValue={shift?.date} required />
+        <Input
+          id="date"
+          name="date"
+          type="date"
+          dir="ltr"
+          className="w-40 text-center"
+          defaultValue={shift?.date}
+          required
+        />
       </div>
       <div className="flex gap-4">
-        <div className="flex flex-1 flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <Label htmlFor="startTime">שעת התחלה</Label>
           <Input
             id="startTime"
             name="startTime"
             type="time"
             dir="ltr"
+            className="w-28 text-center"
             defaultValue={shift?.startTime}
             required
           />
         </div>
-        <div className="flex flex-1 flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <Label htmlFor="endTime">שעת סיום</Label>
           <Input
             id="endTime"
             name="endTime"
             type="time"
             dir="ltr"
+            className="w-28 text-center"
             defaultValue={shift?.endTime}
             required
           />

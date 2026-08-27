@@ -95,14 +95,20 @@ export type SchedulePosition = {
   positionName: string;
   headcountNeeded: number;
   assignments: ScheduleAssignment[];
+  /** Workers holding every qualification this position requires -- used to default the "add
+   * worker" picker to eligible workers only (an admin override to see everyone remains in the
+   * UI, this is just what's offered by default). */
+  eligibleWorkerIds: string[];
 };
 
 export type ScheduleShift = {
   shiftId: string;
+  shiftName: string | null;
   date: string;
   startTime: string;
   endTime: string;
   publishedAt: string | null;
+  availableCount: number;
   positions: SchedulePosition[];
 };
 
@@ -123,6 +129,7 @@ export type ScheduleReview = {
 
 type RawScheduleShift = {
   id: string;
+  name: string | null;
   date: string;
   start_time: string;
   end_time: string;
@@ -166,7 +173,7 @@ export async function getScheduleReview(windowId: string): Promise<ScheduleRevie
   const { data: shifts } = await supabase
     .from("shifts")
     .select(
-      `id, date, start_time, end_time, published_at,
+      `id, name, date, start_time, end_time, published_at,
       links:shift_positions!shift_positions_shift_id_fkey(position_id, headcount_needed, position:positions!shift_positions_position_id_fkey(name))`,
     )
     .eq("availability_window_id", windowId)
@@ -174,6 +181,9 @@ export async function getScheduleReview(windowId: string): Promise<ScheduleRevie
     .order("start_time", { ascending: true });
 
   const shiftIds = (shifts ?? []).map((s) => s.id);
+  const positionIds = [
+    ...new Set((shifts ?? []).flatMap((s) => s.links.map((l) => l.position_id))),
+  ];
 
   const { data: assignmentRows } = await supabase
     .from("assignments")
@@ -181,6 +191,16 @@ export async function getScheduleReview(windowId: string): Promise<ScheduleRevie
       "shift_id, position_id, worker_id, worker:profiles!assignments_worker_id_fkey(full_name)",
     )
     .in("shift_id", shiftIds.length > 0 ? shiftIds : [""]);
+
+  const { data: availabilityRows } = await supabase
+    .from("availability")
+    .select("shift_id")
+    .eq("is_available", true)
+    .in("shift_id", shiftIds.length > 0 ? shiftIds : [""]);
+  const availableCountByShift = new Map<string, number>();
+  for (const a of availabilityRows ?? []) {
+    availableCountByShift.set(a.shift_id, (availableCountByShift.get(a.shift_id) ?? 0) + 1);
+  }
 
   const { data: pairingRows } = await supabase
     .from("worker_pairing_preferences")
@@ -191,13 +211,50 @@ export async function getScheduleReview(windowId: string): Promise<ScheduleRevie
     )
     .eq("preference", "prefer_avoid");
 
+  const { data: requirementRows } = await supabase
+    .from("position_qualifications")
+    .select("position_id, qualification_id, option_id")
+    .in("position_id", positionIds.length > 0 ? positionIds : [""]);
+  const requirementsByPosition = new Map<string, { qualificationId: string; optionId: string | null }[]>();
+  for (const r of requirementRows ?? []) {
+    const list = requirementsByPosition.get(r.position_id) ?? [];
+    list.push({ qualificationId: r.qualification_id, optionId: r.option_id });
+    requirementsByPosition.set(r.position_id, list);
+  }
+
+  const { data: workerProfiles } = await supabase.from("profiles").select("id").eq("role", "worker");
+  const workerIds = (workerProfiles ?? []).map((w) => w.id);
+  const { data: heldRows } = await supabase
+    .from("worker_qualifications")
+    .select("worker_id, qualification_id, option_id")
+    .eq("status", "approved")
+    .in("worker_id", workerIds.length > 0 ? workerIds : [""]);
+  const heldByWorker = new Map<string, { qualificationId: string; optionId: string | null }[]>();
+  for (const h of heldRows ?? []) {
+    const list = heldByWorker.get(h.worker_id) ?? [];
+    list.push({ qualificationId: h.qualification_id, optionId: h.option_id });
+    heldByWorker.set(h.worker_id, list);
+  }
+
+  function eligibleWorkersFor(positionId: string): string[] {
+    const requirements = requirementsByPosition.get(positionId) ?? [];
+    return workerIds.filter((workerId) => {
+      const held = heldByWorker.get(workerId) ?? [];
+      return requirements.every((req) =>
+        held.some((h) => h.qualificationId === req.qualificationId && h.optionId === req.optionId),
+      );
+    });
+  }
+
   const scheduleShifts: ScheduleShift[] = ((shifts as unknown as RawScheduleShift[]) ?? []).map(
     (s) => ({
       shiftId: s.id,
+      shiftName: s.name,
       date: s.date,
       startTime: s.start_time,
       endTime: s.end_time,
       publishedAt: s.published_at,
+      availableCount: availableCountByShift.get(s.id) ?? 0,
       positions: s.links.map((l) => ({
         positionId: l.position_id,
         positionName: l.position?.name ?? "",
@@ -205,6 +262,7 @@ export async function getScheduleReview(windowId: string): Promise<ScheduleRevie
         assignments: ((assignmentRows as unknown as RawAssignment[]) ?? [])
           .filter((a) => a.shift_id === s.id && a.position_id === l.position_id)
           .map((a) => ({ workerId: a.worker_id, workerName: a.worker?.full_name ?? "" })),
+        eligibleWorkerIds: eligibleWorkersFor(l.position_id),
       })),
     }),
   );

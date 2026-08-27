@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { addAssignment, removeAssignment } from "../actions";
@@ -23,9 +24,13 @@ function PositionRow({
 }) {
   const [pendingWorkerId, setPendingWorkerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAllWorkers, setShowAllWorkers] = useState(false);
 
   const assignedIds = new Set(position.assignments.map((a) => a.workerId));
-  const availableWorkers = allWorkers.filter((w) => !assignedIds.has(w.id));
+  const eligibleIds = new Set(position.eligibleWorkerIds);
+  const candidateWorkers = allWorkers.filter(
+    (w) => !assignedIds.has(w.id) && (showAllWorkers || eligibleIds.has(w.id)),
+  );
   const unfilled = position.assignments.length < position.headcountNeeded;
 
   async function handleAdd(workerId: string) {
@@ -70,8 +75,8 @@ function PositionRow({
           </Badge>
         ))}
       </div>
-      {!disabled && availableWorkers.length > 0 ? (
-        <div className="flex items-center gap-2">
+      {!disabled ? (
+        <div className="flex flex-wrap items-center gap-2">
           <select
             className="h-7 rounded-lg border border-input bg-transparent px-2 text-sm"
             defaultValue=""
@@ -84,12 +89,29 @@ function PositionRow({
             <option value="" disabled>
               הוספת עובד/ת...
             </option>
-            {availableWorkers.map((w) => (
+            {candidateWorkers.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.full_name}
               </option>
             ))}
           </select>
+          {!showAllWorkers ? (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:underline"
+              onClick={() => setShowAllWorkers(true)}
+            >
+              הצג את כל העובדים
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:underline"
+              onClick={() => setShowAllWorkers(false)}
+            >
+              הצג מתאימים בלבד
+            </button>
+          )}
         </div>
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -106,35 +128,48 @@ export function ScheduleShiftCard({
   shift: ScheduleShift;
   allWorkers: Profile[];
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle className="flex items-center gap-2">
-          <span dir="ltr">
-            {shift.date} · {shift.startTime.slice(0, 5)}–{shift.endTime.slice(0, 5)}
-          </span>
-          <Badge variant={shift.publishedAt ? "default" : "outline"}>
-            {shift.publishedAt ? "פורסמה" : "טיוטה"}
-          </Badge>
-        </CardTitle>
+        <button
+          type="button"
+          className="flex flex-1 flex-wrap items-center gap-2 text-start"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            {shift.shiftName ? <span className="font-bold">{shift.shiftName}</span> : null}
+            <span dir="ltr">
+              {shift.date} · {shift.startTime.slice(0, 5)}–{shift.endTime.slice(0, 5)}
+            </span>
+            <Badge variant={shift.publishedAt ? "default" : "outline"}>
+              {shift.publishedAt ? "פורסמה" : "טיוטה"}
+            </Badge>
+            <Badge variant="secondary">{shift.availableCount} זמינים</Badge>
+          </CardTitle>
+          {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </button>
         <PublishShiftButton windowId={windowId} shiftId={shift.shiftId} published={!!shift.publishedAt} />
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        {shift.positions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">אין תפקידים במשמרת זו.</p>
-        ) : (
-          shift.positions.map((p) => (
-            <PositionRow
-              key={p.positionId}
-              windowId={windowId}
-              shiftId={shift.shiftId}
-              position={p}
-              allWorkers={allWorkers}
-              disabled={!!shift.publishedAt}
-            />
-          ))
-        )}
-      </CardContent>
+      {expanded ? (
+        <CardContent className="flex flex-col gap-2 border-t pt-4">
+          {shift.positions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">אין תפקידים במשמרת זו.</p>
+          ) : (
+            shift.positions.map((p) => (
+              <PositionRow
+                key={p.positionId}
+                windowId={windowId}
+                shiftId={shift.shiftId}
+                position={p}
+                allWorkers={allWorkers}
+                disabled={!!shift.publishedAt}
+              />
+            ))
+          )}
+        </CardContent>
+      ) : null}
     </Card>
   );
 }

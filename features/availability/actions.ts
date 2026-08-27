@@ -6,21 +6,24 @@ import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
 
 /** Upsert on (worker_id, shift_id) -- resubmission just overwrites, per
- * docs/technical-plan.md's CRUD table ("no separate delete"). */
+ * docs/technical-plan.md's CRUD table ("no separate delete"). Accepts multiple shift IDs so one
+ * response can cover every shift in an overlapping-time slot group (see
+ * features/availability/queries.ts's AvailabilitySlot) -- a plain single-shift response is just
+ * the one-element case. */
 export async function submitAvailability(
-  shiftId: string,
+  shiftIds: string[],
   isAvailable: boolean,
 ): Promise<Result<void>> {
   const worker = await requireWorker();
 
   const supabase = await createClient();
   const { error } = await supabase.from("availability").upsert(
-    {
+    shiftIds.map((shiftId) => ({
       worker_id: worker.id,
       shift_id: shiftId,
       is_available: isAvailable,
       responded_at: new Date().toISOString(),
-    },
+    })),
     { onConflict: "worker_id,shift_id" },
   );
   if (error) {

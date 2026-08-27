@@ -15,12 +15,12 @@ export function AvailabilityWindowsSection({ windows }: { windows: OpenWindow[] 
             <CardTitle>{w.label}</CardTitle>
           </CardHeader>
           <CardContent>
-            {w.shifts.length === 0 ? (
+            {w.slots.length === 0 ? (
               <p className="text-sm text-muted-foreground">אין משמרות בחלון זה.</p>
             ) : (
               <ul className="flex flex-col gap-2">
-                {w.shifts.map((s) => (
-                  <AvailabilityShiftRow key={s.shiftId} shift={s} />
+                {w.slots.map((s) => (
+                  <AvailabilityShiftRow key={s.shiftIds.join(",")} slot={s} />
                 ))}
               </ul>
             )}

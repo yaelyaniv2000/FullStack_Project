@@ -41,7 +41,7 @@ export function AppHeader({
           <SheetHeader>
             <SheetTitle>ניווט</SheetTitle>
           </SheetHeader>
-          <nav className="grid grid-cols-2 gap-3 p-4">
+          <nav className="grid grid-cols-1 gap-3 p-4">
             {links.map((link) => (
               <Link
                 key={link.href}
@@ -62,9 +62,9 @@ export function AppHeader({
           </div>
         </SheetContent>
       </Sheet>
-      <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold">
-        <Plane className="size-5" />
+      <Link href="/dashboard" className="flex items-center gap-2 text-2xl font-bold">
         המשבצת
+        <Plane className="size-6" />
       </Link>
       <div className="size-8" aria-hidden />
     </header>

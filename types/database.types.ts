@@ -511,6 +511,7 @@ export type Database = {
           end_time: string
           id: string
           location: string | null
+          name: string | null
           published_at: string | null
           start_time: string
         }
@@ -521,6 +522,7 @@ export type Database = {
           end_time: string
           id?: string
           location?: string | null
+          name?: string | null
           published_at?: string | null
           start_time: string
         }
@@ -531,6 +533,7 @@ export type Database = {
           end_time?: string
           id?: string
           location?: string | null
+          name?: string | null
           published_at?: string | null
           start_time?: string
         }

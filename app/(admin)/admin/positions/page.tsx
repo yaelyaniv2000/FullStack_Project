@@ -14,23 +14,25 @@ export default async function PositionsPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">ניהול תפקידים</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>הוספת תפקיד חדש</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PositionForm allQualifications={qualifications} />
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 md:flex-row">
+        <Card className="md:w-2/3">
+          <CardHeader>
+            <CardTitle>הוספת תפקיד חדש</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PositionForm allQualifications={qualifications} />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>תפקידים קיימים ({positions.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PositionsList positions={positions} allQualifications={qualifications} />
-        </CardContent>
-      </Card>
+        <Card className="md:w-1/3">
+          <CardHeader>
+            <CardTitle>תפקידים קיימים ({positions.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PositionsList positions={positions} allQualifications={qualifications} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

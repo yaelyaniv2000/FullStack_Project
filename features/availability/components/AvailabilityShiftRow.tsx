@@ -2,30 +2,39 @@
 
 import { useOptimistic, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { submitAvailability } from "../actions";
-import type { AvailabilityShift } from "../queries";
+import type { AvailabilitySlot } from "../queries";
 
 /** Instant toggle feel for a quick phone interaction (per CLAUDE.md's state-management
  * conventions: useOptimistic for the few interactions worth it, availability toggles being the
- * canonical example). */
-export function AvailabilityShiftRow({ shift }: { shift: AvailabilityShift }) {
-  const [optimisticAvailable, setOptimisticAvailable] = useOptimistic(shift.isAvailable);
+ * canonical example). One row per time slot, which may cover more than one underlying shift
+ * (see AvailabilitySlot) -- responding writes to all of them at once. */
+export function AvailabilityShiftRow({ slot }: { slot: AvailabilitySlot }) {
+  const [optimisticAvailable, setOptimisticAvailable] = useOptimistic(slot.isAvailable);
   const [isPending, startTransition] = useTransition();
 
   function respond(value: boolean) {
     startTransition(async () => {
       setOptimisticAvailable(value);
-      await submitAvailability(shift.shiftId, value);
+      await submitAvailability(slot.shiftIds, value);
     });
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
-      <span className="text-sm">
+    <li
+      className={`flex flex-wrap items-center justify-between gap-2 rounded border p-3 ${
+        slot.mayRenewExpiringQualification ? "border-primary bg-primary/5" : ""
+      }`}
+    >
+      <span className="flex flex-wrap items-center gap-1.5 text-sm">
         <span dir="ltr">
-          {shift.date} · {shift.startTime.slice(0, 5)}–{shift.endTime.slice(0, 5)}
+          {slot.date} · {slot.startTime.slice(0, 5)}–{slot.endTime.slice(0, 5)}
         </span>
-        {shift.location ? ` · ${shift.location}` : ""}
+        {slot.locations.length > 0 ? ` · ${slot.locations.join(", ")}` : ""}
+        {slot.mayRenewExpiringQualification ? (
+          <Badge variant="default">מחדשת כשירות שעומדת לפוג</Badge>
+        ) : null}
       </span>
       <div className="flex gap-2">
         <Button

@@ -42,6 +42,7 @@ export function QualificationOptionsEditor({
             value={row.label}
             onChange={(e) => updateLabel(i, e.target.value)}
             placeholder="לדוגמה: קבוע"
+            className="max-w-48"
           />
           <Button
             type="button"

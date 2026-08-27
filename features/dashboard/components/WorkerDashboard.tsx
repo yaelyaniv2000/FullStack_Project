@@ -5,6 +5,7 @@ import { listMyUpcomingShifts } from "@/features/shifts/queries";
 import { listWorkerQualifications } from "@/features/worker-qualifications/queries";
 import { listOpenWindowsWithShifts } from "@/features/availability/queries";
 import { listMyNotifications } from "@/features/notifications/queries";
+import { getAppSettings } from "@/features/settings/queries";
 import { MyQualificationsList } from "@/features/worker-qualifications/components/MyQualificationsList";
 
 /** The worker's home screen (per user feedback 2026-08-25: no longer a nav-menu item, the logo
@@ -12,11 +13,12 @@ import { MyQualificationsList } from "@/features/worker-qualifications/component
  * beyond limiting/reusing what /my-shifts, /my-qualifications, /availability, /notifications
  * already expose. */
 export async function WorkerDashboard({ workerId }: { workerId: string }) {
-  const [shifts, qualifications, openWindows, notifications] = await Promise.all([
+  const [shifts, qualifications, openWindows, notifications, { expiringSoonDays }] = await Promise.all([
     listMyUpcomingShifts(workerId),
     listWorkerQualifications(workerId),
     listOpenWindowsWithShifts(workerId),
     listMyNotifications(workerId),
+    getAppSettings(),
   ]);
   const unreadNotifications = notifications.filter((n) => !n.readAt);
 
@@ -63,7 +65,7 @@ export async function WorkerDashboard({ workerId }: { workerId: string }) {
           <CardTitle>סטטוס כשירויות</CardTitle>
         </CardHeader>
         <CardContent>
-          <MyQualificationsList qualifications={qualifications} />
+          <MyQualificationsList qualifications={qualifications} expiringSoonDays={expiringSoonDays} />
         </CardContent>
       </Card>
 

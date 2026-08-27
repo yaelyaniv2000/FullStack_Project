@@ -7,6 +7,7 @@ import {
   listExpiringQualifications,
 } from "@/features/worker-qualifications/queries";
 import { listActivePairingConflicts } from "@/features/scheduling/queries";
+import { listWindowsPendingApproval } from "@/features/availability-windows/queries";
 import { getAppSettings } from "@/features/settings/queries";
 
 /**
@@ -17,16 +18,42 @@ import { getAppSettings } from "@/features/settings/queries";
  */
 export async function AdminDashboard() {
   const { expiringSoonDays } = await getAppSettings();
-  const [understaffed, pending, upcoming, expiring, pairingConflicts] = await Promise.all([
+  const [understaffed, pending, upcoming, expiring, pairingConflicts, pendingApproval] = await Promise.all([
     listUnderstaffedShifts(5),
     listPendingApprovals(5),
     listUpcomingShifts(5),
     listExpiringQualifications(expiringSoonDays, 5),
     listActivePairingConflicts(5),
+    listWindowsPendingApproval(5),
   ]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      {pendingApproval.length > 0 ? (
+        <Card className="border-primary sm:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              שיבוצים ממתינים לאישור
+              <Badge variant="default">{pendingApproval.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-2">
+              {pendingApproval.map((w) => (
+                <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>
+                    {w.label} · {w.unpublishedCount} משמרות לא מפורסמות
+                  </span>
+                  <Link href={`/admin/schedule/${w.id}`} className="text-sm underline">
+                    לצפייה ←
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

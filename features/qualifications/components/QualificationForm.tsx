@@ -52,6 +52,7 @@ export function QualificationForm({
           name="renewalIntervalDays"
           type="number"
           min={1}
+          className="w-28"
           defaultValue={qualification?.renewal_interval_days ?? ""}
         />
       </div>

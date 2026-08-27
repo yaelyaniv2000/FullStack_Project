@@ -94,14 +94,14 @@ export function ShiftTemplatePositionsPicker({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-56 justify-between font-normal text-muted-foreground"
+                className="w-48 justify-between font-normal text-muted-foreground"
               />
             }
           >
             הוספת תפקיד...
             <ChevronsUpDown className="size-4 opacity-50" />
           </PopoverTrigger>
-          <PopoverContent className="w-56 p-0">
+          <PopoverContent className="w-48 p-0">
             <Command>
               <CommandInput placeholder="חיפוש תפקיד..." />
               <CommandList>

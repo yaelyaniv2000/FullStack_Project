@@ -540,8 +540,98 @@ is the right tool specifically here, not a general policy change for every futur
       `/dashboard`'s expiring-soon card correctly moved his expiry from 2026-08-28 (the old
       `obtained_at`-only date) to 2026-09-04 (completed-shift-date + 11), confirmed via the same
       cookie-jar + curl method as above. Cleaned up the test shift after.
+
+      **Known limitation, confirmed not v1 scope (2026-08-27, user question → discussion)**: this
+      renewal logic is reactive only — it correctly extends expiry once a completed shift renews
+      a qualification, but the *scheduling heuristic* has no expiry-awareness feeding the other
+      direction (it won't preferentially pick a worker whose qualification is expiring soon for a
+      shift/position that would renew it). See CLAUDE.md's scheduling-heuristic bullet for the
+      full reasoning on why this is deferred, not an oversight.
 - [ ] 🔌 *(optional, only if you decide to support it)* connect an email/SMS provider for
       off-app notifications — treat as a stretch goal, not core scope
+
+## UX/UI batch A (2026-08-27, user's written notes after a full pass over the app)
+
+User wrote up a full document of UX notes after using every built feature, then triaged it with
+help into "do now" (Batch A, below) vs. "defer or cut" (Batch B — full calendar with live-push
+editing, editing a published shift in place, availability-window shift-picking flow, cut
+entirely: real-time push of requirement changes to an already-open worker tab). Batch A is
+everything mechanical/self-contained enough to do before Phase 6; Batch B stays out of scope for
+now given the 2026-09-06 deadline. One item (scheduling priority for expiring qualifications) was
+raised again here but confirmed still deferred — see the known-limitation note above.
+
+- [X] 💻 Header: airplane icon swapped to the *end* of the DOM order so it lands visually left of
+      "המשבצת" under RTL (first DOM child sits at the right edge in a `dir="rtl"` flex row —
+      confirmed by reading the rendered HTML, not just reasoning about it), text enlarged
+      `text-xl` → `text-2xl`. Nav grid `grid-cols-2` → `grid-cols-1` (reversing the Phase-4 UX
+      pass's own earlier choice, per explicit user re-review).
+- [X] 💻 Background theming: `--background`/`--card`/`--secondary`/`--muted`/`--accent`/`--border`
+      in `app/globals.css` moved from pure white/gray to a warm cream `oklch` palette, `--card`
+      kept slightly lighter than `--background` so cards read as distinct regions. Light mode
+      only (not touched: `.dark`).
+- [X] 💻 `shifts.name` (nullable, additive migration) — optional display name, shown as a bold
+      title wherever a shift is listed: `/admin/shifts`, the availability-window review page, the
+      schedule review page. Regenerating `types/database.types.ts` via `supabase gen types`
+      caught a real self-inflicted bug: piping `2>&1` *after* an already-redirected `>` sends
+      stderr into the same file handle, so the CLI's "new version available" nag got appended
+      into the generated types file and broke every downstream import. Fixed by stripping the two
+      corrupted trailing lines; **rule going forward**: never chain `> file 2>&1 | ...` — redirect
+      stdout to the file and let stderr go to the terminal separately.
+- [X] 💻 Mechanical UI pass across the 5 CRUD admin pages (shifts/qualifications/positions/
+      shift-templates/personnel): shrunk oversized inputs (date/time, validity-in-days, option
+      labels, name fields), added a client-side search filter to every existing-item list (small
+      lists, plain `.filter()`, no new server queries), and — for shifts/qualifications/positions
+      specifically (not templates/personnel, per the user's exact list) — moved the existing-item
+      list to a `md:w-1/3` column left of a `md:w-2/3` form column. The "start from template"
+      `<Select>` on the shift form became a searchable Command/Popover combobox, same pattern
+      already used for position/template pickers.
+- [X] 💻 Availability-window form: `opensAt`/`closesAt` split into separate date+time `<Input>`s,
+      combined into the single ISO value the server action already expects (form-only change,
+      same pattern as `min_rest_hours`' days+hours combining) — no action/schema change.
+- [X] 💻 Availability-window review page (`/admin/availability-windows/[id]`) rebuilt: shows only
+      workers who marked *available* (previously showed both, with a badge), each with which of
+      the shift's required positions they're actually eligible for (new qualification-matching
+      query logic, mirrors the heuristic's eligibility check but without availability/rest/pairing
+      since this is a pre-generation view). Cards collapse to name/time/available-count, expand to
+      the full per-position eligibility table. Added a search filter.
+- [X] 💻 Schedule review page (`/admin/schedule/[windowId]`) rebuilt the same way: collapsible
+      cards (collapsed shows the *available* count, per the user's exact spec, even though the
+      expanded view shows actual assignments), search filter, bold shift name. The "add worker"
+      picker now defaults to qualification-eligible workers only, with a "הצג את כל העובדים"
+      toggle to reveal everyone — keeps the documented "admin has final say" override capability
+      the user explicitly confirmed she wanted kept, while satisfying "no option to add someone
+      unqualified" as the *default*, not an absolute block.
+- [X] 💻 Admin home screen: new "שיבוצים ממתינים לאישור" card (top of the grid, spans both
+      columns) — every availability window whose `closes_at` has passed and that still has an
+      unpublished shift, linking straight to its review page. Directly answers the earlier
+      discoverability gap (schedule review was only reachable via a per-window "שיבוץ" link).
+- [X] 💻 Worker-facing expiring-qualification visibility, two parts: `MyQualificationsList` gets a
+      "פג תוקף בקרוב" badge (red-tinted card) using the same `expiringSoonDays` setting the admin
+      dashboard already uses; the availability-submission page highlights any shift where some
+      position the worker is qualified for would renew one of their soon-expiring qualifications
+      (`position_renews_qualifications` cross-referenced against eligibility and expiry — new
+      logic in `features/availability/queries.ts`).
+- [X] 💻 Overlapping-shift availability dedup: `listOpenWindowsWithShifts` now groups shifts
+      sharing the exact same date/start/end time into one `AvailabilitySlot` (exact-match, not
+      partial-overlap — matches "parallel" in the original feedback), one row per slot on the
+      availability page, `submitAvailability` takes `shiftIds: string[]` and upserts all of them
+      from a single response. Deliberately no schema change — `availability` stays keyed per
+      shift exactly as before, grouping is computed at read time, same convention as everywhere
+      else in this codebase.
+
+      **Verified end-to-end against the real running dev server**, not just build-passing:
+      Playwright still can't launch a browser on this machine, so used the same
+      `@supabase/ssr`-minted-cookie + `curl` method as Phase 5's publish verification. Confirmed:
+      logo DOM order, all five list pages' search boxes and layout classes render; the pending-
+      approvals card is correctly empty when no window has closed yet, and correctly appears when
+      one is temporarily backdated (reverted after); `ScheduleShiftCard`'s `eligibleWorkerIds` for
+      טייס correctly resolved to exactly the two rank-appropriate demo workers; the availability-
+      window review page's per-shift `responses` array correctly excluded workers who marked
+      themselves unavailable for that specific shift; the expiring-soon badge and renewing-shift
+      highlight both appeared for the right seeded worker/qualification; two temporary
+      same-time-slot shifts correctly merged into one `AvailabilitySlot` with both shift IDs, and
+      writing one response correctly upserted both underlying `availability` rows. All temporary
+      test shifts/data and scratch verification scripts cleaned up afterward.
 
 ## Phase 6 — Testing
 

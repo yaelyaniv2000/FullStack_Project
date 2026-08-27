@@ -200,6 +200,15 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
   fewest-assignments-so-far tiebreaker adjusted for pairing preference → flag unfilled slots and
   soft-avoid conflicts). Extend step 2 (eligibility) as real constraints from the squadron become
   known — don't change the overall shape.
+- **Known limitation, confirmed not v1 scope (2026-08-27):** the heuristic's scoring has no
+  awareness of qualification expiry — it will not preferentially assign a worker whose
+  qualification is expiring soon to a shift/position that would renew it
+  (`position_renews_qualifications`). Expiry renewal (see the "computed at read time" bullet
+  below) only reacts to assignments already made; it doesn't feed forward into who gets picked.
+  Considered and deliberately deferred, not an oversight — real scope (threading each worker's
+  per-position expiry into `HeuristicInput`, a new scoring term, updated tests), and today's
+  admin review/manual-reassign step before publish already gives the admin a way to fix this by
+  hand for anyone who visibly needs it.
 - **`assignments` has no status column.** Whether an assignment is proposed or final is derived
   from its shift's `published_at` (null = admin-only draft, set = published & visible to the
   worker). Workers must never see assignments for a shift before `published_at` is set — this is

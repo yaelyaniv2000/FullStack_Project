@@ -8,6 +8,7 @@ export type ShiftPosition = {
 
 export type Shift = {
   id: string;
+  name: string | null;
   date: string;
   startTime: string;
   endTime: string;
@@ -20,6 +21,7 @@ export type Shift = {
 
 type RawShift = {
   id: string;
+  name: string | null;
   date: string;
   start_time: string;
   end_time: string;
@@ -48,6 +50,7 @@ export async function listShifts(): Promise<Shift[]> {
 
   return ((data as unknown as RawShift[]) ?? []).map((s) => ({
     id: s.id,
+    name: s.name,
     date: s.date,
     startTime: s.start_time,
     endTime: s.end_time,
@@ -158,6 +161,7 @@ export async function listUnderstaffedShifts(limit: number): Promise<Understaffe
 
 export type MyShift = {
   shiftId: string;
+  shiftName: string | null;
   positionId: string;
   positionName: string;
   date: string;
@@ -171,6 +175,7 @@ type RawMyShift = {
   position: { name: string } | null;
   shift: {
     id: string;
+    name: string | null;
     date: string;
     start_time: string;
     end_time: string;
@@ -193,7 +198,7 @@ export async function listMyUpcomingShifts(workerId: string): Promise<MyShift[]>
     .select(
       `position_id,
       position:positions!assignments_position_id_fkey(name),
-      shift:shifts!assignments_shift_id_fkey(id, date, start_time, end_time, location, published_at)`,
+      shift:shifts!assignments_shift_id_fkey(id, name, date, start_time, end_time, location, published_at)`,
     )
     .eq("worker_id", workerId);
 
@@ -201,6 +206,7 @@ export async function listMyUpcomingShifts(workerId: string): Promise<MyShift[]>
     .filter((a) => a.shift?.published_at && a.shift.date >= today)
     .map((a) => ({
       shiftId: a.shift!.id,
+      shiftName: a.shift!.name,
       positionId: a.position_id,
       positionName: a.position?.name ?? "",
       date: a.shift!.date,

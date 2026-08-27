@@ -4,12 +4,14 @@ import { listWorkerQualifications } from "@/features/worker-qualifications/queri
 import { listQualifications } from "@/features/qualifications/queries";
 import { MyQualificationsList } from "@/features/worker-qualifications/components/MyQualificationsList";
 import { SelfReportQualificationForm } from "@/features/worker-qualifications/components/SelfReportQualificationForm";
+import { getAppSettings } from "@/features/settings/queries";
 
 export default async function MyQualificationsPage() {
   const worker = await requireWorker();
-  const [qualifications, allQualifications] = await Promise.all([
+  const [qualifications, allQualifications, { expiringSoonDays }] = await Promise.all([
     listWorkerQualifications(worker.id),
     listQualifications(),
+    getAppSettings(),
   ]);
   const alreadyHeldQualificationIds = qualifications
     .filter((q) => q.status !== "rejected")
@@ -36,7 +38,7 @@ export default async function MyQualificationsPage() {
           <CardTitle>כשירויות ({qualifications.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <MyQualificationsList qualifications={qualifications} />
+          <MyQualificationsList qualifications={qualifications} expiringSoonDays={expiringSoonDays} />
         </CardContent>
       </Card>
     </div>

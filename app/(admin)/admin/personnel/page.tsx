@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CreateWorkerForm } from "@/features/accounts/components/CreateWorkerForm";
+import { WorkersList } from "@/features/accounts/components/WorkersList";
 import { listWorkers } from "@/features/accounts/queries";
 
 export default async function PersonnelPage() {
@@ -24,19 +24,7 @@ export default async function PersonnelPage() {
           <CardTitle>עובדים קיימים ({workers.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {workers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">אין עדיין עובדים רשומים.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {workers.map((worker) => (
-                <li key={worker.id} className="text-sm">
-                  <Link href={`/admin/personnel/${worker.id}`} className="hover:underline">
-                    {worker.full_name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          <WorkersList workers={workers} />
         </CardContent>
       </Card>
     </div>

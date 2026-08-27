@@ -20,34 +20,36 @@ export default async function ShiftsPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">ניהול משמרות</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>הוספת משמרת חדשה</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ShiftForm
-            allPositions={positions}
-            allQualifications={qualifications}
-            allTemplates={templates}
-            allAvailabilityWindows={availabilityWindows}
-          />
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 md:flex-row">
+        <Card className="md:w-2/3">
+          <CardHeader>
+            <CardTitle>הוספת משמרת חדשה</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ShiftForm
+              allPositions={positions}
+              allQualifications={qualifications}
+              allTemplates={templates}
+              allAvailabilityWindows={availabilityWindows}
+            />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>משמרות קיימות ({shifts.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ShiftsList
-            shifts={shifts}
-            allPositions={positions}
-            allQualifications={qualifications}
-            allTemplates={templates}
-            allAvailabilityWindows={availabilityWindows}
-          />
-        </CardContent>
-      </Card>
+        <Card className="md:w-1/3">
+          <CardHeader>
+            <CardTitle>משמרות קיימות ({shifts.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ShiftsList
+              shifts={shifts}
+              allPositions={positions}
+              allQualifications={qualifications}
+              allTemplates={templates}
+              allAvailabilityWindows={availabilityWindows}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

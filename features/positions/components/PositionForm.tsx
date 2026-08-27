@@ -55,7 +55,7 @@ export function PositionForm({
     <form action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">שם התפקיד</Label>
-        <Input id="name" name="name" defaultValue={position?.name} required />
+        <Input id="name" name="name" className="max-w-56" defaultValue={position?.name} required />
       </div>
       <QualificationMultiPicker
         key={`required-${resetKey}`}

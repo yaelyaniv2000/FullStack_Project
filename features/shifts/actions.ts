@@ -8,6 +8,7 @@ import type { Result } from "@/lib/result";
 
 const shiftSchema = z
   .object({
+    name: z.string().nullable(),
     date: z.string().min(1, "נא לבחור תאריך"),
     startTime: z.string().min(1, "נא לבחור שעת התחלה"),
     endTime: z.string().min(1, "נא לבחור שעת סיום"),
@@ -29,9 +30,11 @@ function parsePositionRows(formData: FormData): { positionId: string; headcountN
 }
 
 function parseShiftFields(formData: FormData) {
+  const rawName = String(formData.get("name") ?? "").trim();
   const rawLocation = String(formData.get("location") ?? "").trim();
   const rawWindowId = String(formData.get("availabilityWindowId") ?? "").trim();
   return shiftSchema.safeParse({
+    name: rawName || null,
     date: formData.get("date"),
     startTime: formData.get("startTime"),
     endTime: formData.get("endTime"),
@@ -58,6 +61,7 @@ export async function createShift(
   const { data: shift, error } = await supabase
     .from("shifts")
     .insert({
+      name: parsed.data.name,
       date: parsed.data.date,
       start_time: parsed.data.startTime,
       end_time: parsed.data.endTime,
@@ -106,6 +110,7 @@ export async function updateShift(
   const { error } = await supabase
     .from("shifts")
     .update({
+      name: parsed.data.name,
       date: parsed.data.date,
       start_time: parsed.data.startTime,
       end_time: parsed.data.endTime,

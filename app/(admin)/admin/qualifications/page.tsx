@@ -10,23 +10,25 @@ export default async function QualificationsPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">ניהול כשירויות</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>הוספת כשירות חדשה</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <QualificationForm />
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 md:flex-row">
+        <Card className="md:w-2/3">
+          <CardHeader>
+            <CardTitle>הוספת כשירות חדשה</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <QualificationForm />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>כשירויות קיימות ({qualifications.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <QualificationsList qualifications={qualifications} />
-        </CardContent>
-      </Card>
+        <Card className="md:w-1/3">
+          <CardHeader>
+            <CardTitle>כשירויות קיימות ({qualifications.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <QualificationsList qualifications={qualifications} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

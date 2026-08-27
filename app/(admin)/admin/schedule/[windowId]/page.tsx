@@ -6,7 +6,7 @@ import { getScheduleReview } from "@/features/scheduling/queries";
 import { listWorkers } from "@/features/accounts/queries";
 import { GenerateScheduleButton } from "@/features/scheduling/components/GenerateScheduleButton";
 import { PublishAllButton } from "@/features/scheduling/components/PublishAllButton";
-import { ScheduleShiftCard } from "@/features/scheduling/components/ScheduleShiftCard";
+import { ScheduleShiftsList } from "@/features/scheduling/components/ScheduleShiftsList";
 
 export default async function ScheduleReviewPage({
   params,
@@ -67,18 +67,7 @@ export default async function ScheduleReviewPage({
         </Card>
       ) : null}
 
-      {review.shifts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">אין משמרות בחלון זה.</p>
-      ) : (
-        review.shifts.map((shift) => (
-          <ScheduleShiftCard
-            key={shift.shiftId}
-            windowId={windowId}
-            shift={shift}
-            allWorkers={workers}
-          />
-        ))
-      )}
+      <ScheduleShiftsList windowId={windowId} shifts={review.shifts} allWorkers={workers} />
     </div>
   );
 }
