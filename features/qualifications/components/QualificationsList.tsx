@@ -48,7 +48,11 @@ export function QualificationsList({
           {filtered.map((q) => (
             <li key={q.id} className="rounded border p-3">
               {editingId === q.id ? (
-                <QualificationForm qualification={q} onDone={() => setEditingId(null)} />
+                <QualificationForm
+                  key={`${q.id}-${q.name}-${q.renewal_interval_days}-${q.options.map((o) => `${o.id}:${o.label}`).join(",")}`}
+                  qualification={q}
+                  onDone={() => setEditingId(null)}
+                />
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-2">

@@ -38,7 +38,11 @@ export function AvailabilityWindowsList({ windows }: { windows: AvailabilityWind
           return (
             <li key={w.id} className="rounded border p-3">
               {editingId === w.id ? (
-                <AvailabilityWindowForm window={w} onDone={() => setEditingId(null)} />
+                <AvailabilityWindowForm
+                  key={`${w.id}-${w.label}-${w.opensAt}-${w.closesAt}`}
+                  window={w}
+                  onDone={() => setEditingId(null)}
+                />
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-1">

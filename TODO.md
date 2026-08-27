@@ -633,6 +633,75 @@ raised again here but confirmed still deferred — see the known-limitation note
       writing one response correctly upserted both underlying `availability` rows. All temporary
       test shifts/data and scratch verification scripts cleaned up afterward.
 
+## UX/UI batch continued (2026-08-28, user's follow-up notes + bug reports)
+
+Same source document, resent with new content appended after her own review of what Batch A
+built. Most of it was already-done or still-deferred Batch B material (calendar, etc., expected
+to keep reappearing in this doc since it's the same running file); this section covers only what
+was genuinely new, plus two real bugs she hit while testing.
+
+- [X] 💻 **Root-cause fix for both reported bugs** (shift-name edit throwing an error that
+      persisted anyway; qualifications page appearing to lose its header/hamburger). This app had
+      zero error boundaries anywhere (`find app -iname error.tsx` returned nothing) — added
+      `app/error.tsx`, scoped so a page-content error no longer takes the `(admin)`/`(worker)`
+      layout (and its header) down with it. Root cause of the actual crash: all five "inline edit
+      in a list" components (shifts/qualifications/positions/templates/availability-windows)
+      render their edit form with no `key` — when a `revalidatePath`-triggered prop refresh lands
+      while the form is still mid-unmount (the same tick `onDone()` clears `editingId`), an
+      uncontrolled `Input` receives a changed `defaultValue` while still mounted, the exact Base
+      UI issue already documented once in this file (Phase 5, settings forms) but never applied
+      to these five list components since until now they always fully unmounted before any prop
+      change could reach them. Fixed by keying each edit form on a signature of its own editable
+      fields (e.g. `` `${s.id}-${s.name}-${s.date}-...` ``) — a remount gets fresh `defaultValue`s
+      instead of a mounted component receiving changed ones, same fix pattern as Phase 5, applied
+      proactively to all five, not just the two she happened to hit.
+- [X] 💻 Shifts page: flipped the split (form 1/3, existing shifts 2/3 — reverse of what Batch A
+      built, per explicit re-review). Positions and qualifications pages: 1/3–2/3 → 50/50.
+- [X] 💻 Shrunk the qualifications page's "הוספת אפשרות" button (`size="sm"`, `w-fit`).
+- [X] 💻 Softened the button color (`--primary` in `app/globals.css`, near-black →
+      a muted slate blue, light mode only).
+- [X] 💻 "חלון זמינות חדש" dialog inside `ShiftForm` — exact same pattern already established for
+      creating a position inline from the shift-positions picker (`onCreated` callback,
+      `extraWindows` dedup against the server-refreshed list). Required extending
+      `createAvailabilityWindow`'s return type to actually return the created row (it previously
+      returned nothing).
+- [X] 💻 New "שובצה" (assigned) status badge on the shifts list — shown when a shift has
+      assignments but isn't published yet, between "טיוטה" and "פורסמה". `listShifts()` now also
+      returns `assignedWorkerNames`, which also feeds the search extension below.
+- [X] 💻 Split shift history out: `/admin/shifts` now scopes to `date >= today` only; new
+      `/admin/shifts/past` (read-only — no edit/delete, matches the "already occurred" rule
+      already written for the deferred calendar's color states) shows everything before today,
+      with its own search. `listShifts()` gained a `scope: "all" | "upcoming" | "past"` param.
+- [X] 💻 Every shift search (admin shifts list, availability-window review, schedule review) now
+      also matches by assigned/available worker name, not just name/date/position.
+- [X] 💻 **New feature**: post-close availability change requests. Once a window closes, a worker
+      can no longer toggle their response, but it doesn't just disappear either —
+      `listRecentlyClosedWindowsWithResponses` shows their own past answers read-only (last 3
+      closed windows they responded in). A "לא אוכל להגיע" button on a shift they marked available
+      opens an optional-message flow (`requestAvailabilityChange`) that writes to a new
+      `availability_change_requests` table (migration
+      `20260828060000_add_availability_change_requests.sql`; RLS: worker inserts/reads own only,
+      only an admin can update/acknowledge). Deliberately **not** built on the existing
+      `notifications` table — that table's RLS is admin-insert-only (notifications flow
+      admin→worker, this is the reverse direction). Admin sees pending requests in two places,
+      same "per-page detail + dashboard aggregate" pattern as the pairing-conflicts card:
+      `ChangeRequestsCard` on the relevant `/admin/schedule/[windowId]` page, and a global
+      unacknowledged-count card on `/dashboard`. Acknowledging is a one-way flag
+      (`acknowledgeChangeRequest`) — it doesn't touch `assignments` itself; the admin makes (or
+      doesn't make) the actual schedule change manually via the existing add/remove-assignment UI,
+      exactly as specified.
+
+      **Verified end-to-end against the real dev server**: same cookie-jar + curl method as
+      before. Confirmed the "שובצה" badge renders for a real unpublished-but-assigned demo shift;
+      created a real change request (mirroring the actual insert), confirmed it appeared on both
+      the schedule review page's card and the dashboard's global card with the right worker/shift/
+      message; confirmed the worker's own closed-window view showed the pending state; ran the
+      acknowledge path, confirmed both the admin's "נצפתה" badge and the worker's "האדמין ראה
+      וטיפל" text updated, and confirmed the dashboard card correctly dropped the request once
+      acknowledged (it only counts unacknowledged ones). All test data and scratch scripts cleaned
+      up afterward; the demo window's `closes_at` was temporarily backdated twice for this
+      testing and restored both times.
+
 ## Phase 6 — Testing
 
 - [ ] 💻 Extend the Vitest setup (already installed in Phase 5 for the heuristic tests) with

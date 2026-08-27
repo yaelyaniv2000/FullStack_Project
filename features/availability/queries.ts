@@ -169,3 +169,182 @@ export async function listOpenWindowsWithShifts(workerId: string): Promise<OpenW
     return { id: w.id, label: w.label, closesAt: w.closes_at, slots };
   });
 }
+
+export type ChangeRequestState = {
+  id: string;
+  message: string | null;
+  createdAt: string;
+  acknowledgedAt: string | null;
+};
+
+export type ClosedWindowShift = {
+  shiftId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  isAvailable: boolean;
+  changeRequest: ChangeRequestState | null;
+};
+
+export type ClosedWindow = {
+  id: string;
+  label: string;
+  closesAt: string;
+  shifts: ClosedWindowShift[];
+};
+
+/**
+ * Once a window closes, a worker can no longer toggle their response -- per user feedback
+ * (2026-08-28), it shouldn't just disappear either. Shows the worker's own past responses
+ * read-only, for the most recently closed windows they responded to, plus whether they've
+ * already flagged a problem with a specific shift (`availability_change_requests`) and whether
+ * an admin has acknowledged it. Only includes shifts the worker actually responded to -- nothing
+ * to show or flag for one they never answered.
+ */
+export async function listRecentlyClosedWindowsWithResponses(
+  workerId: string,
+  windowLimit = 3,
+): Promise<ClosedWindow[]> {
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+
+  const { data: windows } = await supabase
+    .from("availability_windows")
+    .select("id, label, closes_at")
+    .lt("closes_at", now)
+    .order("closes_at", { ascending: false })
+    .limit(windowLimit);
+  if (!windows || windows.length === 0) return [];
+
+  const windowIds = windows.map((w) => w.id);
+  const { data: shifts } = await supabase
+    .from("shifts")
+    .select("id, date, start_time, end_time, location, availability_window_id")
+    .in("availability_window_id", windowIds)
+    .order("date", { ascending: true })
+    .order("start_time", { ascending: true });
+  const shiftIds = (shifts ?? []).map((s) => s.id);
+
+  const { data: responses } = await supabase
+    .from("availability")
+    .select("shift_id, is_available")
+    .eq("worker_id", workerId)
+    .in("shift_id", shiftIds.length > 0 ? shiftIds : [""]);
+  const responseMap = new Map((responses ?? []).map((r) => [r.shift_id, r.is_available]));
+
+  const { data: changeRequests } = await supabase
+    .from("availability_change_requests")
+    .select("id, shift_id, message, created_at, acknowledged_at")
+    .eq("worker_id", workerId)
+    .in("shift_id", shiftIds.length > 0 ? shiftIds : [""]);
+  const changeRequestByShift = new Map(
+    (changeRequests ?? []).map((c) => [
+      c.shift_id,
+      { id: c.id, message: c.message, createdAt: c.created_at, acknowledgedAt: c.acknowledged_at },
+    ]),
+  );
+
+  return windows
+    .map((w) => ({
+      id: w.id,
+      label: w.label,
+      closesAt: w.closes_at,
+      shifts: (shifts ?? [])
+        .filter((s) => s.availability_window_id === w.id && responseMap.has(s.id))
+        .map((s) => ({
+          shiftId: s.id,
+          date: s.date,
+          startTime: s.start_time,
+          endTime: s.end_time,
+          location: s.location,
+          isAvailable: responseMap.get(s.id)!,
+          changeRequest: changeRequestByShift.get(s.id) ?? null,
+        })),
+    }))
+    .filter((w) => w.shifts.length > 0);
+}
+
+export type AdminChangeRequest = {
+  id: string;
+  workerId: string;
+  workerName: string;
+  shiftId: string;
+  windowId: string;
+  date: string;
+  startTime: string;
+  message: string | null;
+  createdAt: string;
+  acknowledgedAt: string | null;
+};
+
+type RawAdminChangeRequest = {
+  id: string;
+  worker_id: string;
+  shift_id: string;
+  message: string | null;
+  created_at: string;
+  acknowledged_at: string | null;
+  worker: { full_name: string } | null;
+  shift: { date: string; start_time: string; availability_window_id: string | null } | null;
+};
+
+/** All change requests raised against shifts in this window -- admin-facing, shown on the
+ * schedule review page since that's where the admin is already deciding what to do about a gap. */
+export async function listChangeRequestsForWindow(windowId: string): Promise<AdminChangeRequest[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("availability_change_requests")
+    .select(
+      `id, worker_id, shift_id, message, created_at, acknowledged_at,
+      worker:profiles!availability_change_requests_worker_id_fkey(full_name),
+      shift:shifts!availability_change_requests_shift_id_fkey(date, start_time, availability_window_id)`,
+    )
+    .order("created_at", { ascending: false });
+
+  return ((data as unknown as RawAdminChangeRequest[]) ?? [])
+    .filter((c) => c.shift?.availability_window_id === windowId)
+    .map((c) => ({
+      id: c.id,
+      workerId: c.worker_id,
+      workerName: c.worker?.full_name ?? "",
+      shiftId: c.shift_id,
+      windowId: c.shift!.availability_window_id!,
+      date: c.shift!.date,
+      startTime: c.shift!.start_time,
+      message: c.message,
+      createdAt: c.created_at,
+      acknowledgedAt: c.acknowledged_at,
+    }));
+}
+
+/** Unacknowledged change requests across every window -- dashboard-level surfacing, same
+ * "per-page detail + global aggregate" pattern already used for pairing conflicts. */
+export async function listPendingChangeRequests(limit: number): Promise<AdminChangeRequest[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("availability_change_requests")
+    .select(
+      `id, worker_id, shift_id, message, created_at, acknowledged_at,
+      worker:profiles!availability_change_requests_worker_id_fkey(full_name),
+      shift:shifts!availability_change_requests_shift_id_fkey(date, start_time, availability_window_id)`,
+    )
+    .is("acknowledged_at", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return ((data as unknown as RawAdminChangeRequest[]) ?? [])
+    .filter((c) => c.shift?.availability_window_id)
+    .map((c) => ({
+      id: c.id,
+      workerId: c.worker_id,
+      workerName: c.worker?.full_name ?? "",
+      shiftId: c.shift_id,
+      windowId: c.shift!.availability_window_id!,
+      date: c.shift!.date,
+      startTime: c.shift!.start_time,
+      message: c.message,
+      createdAt: c.created_at,
+      acknowledgedAt: c.acknowledged_at,
+    }));
+}

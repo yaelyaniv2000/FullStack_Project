@@ -52,6 +52,7 @@ export function PositionsList({
             <li key={p.id} className="rounded border p-3">
               {editingId === p.id ? (
                 <PositionForm
+                  key={`${p.id}-${p.name}-${p.requiredQualifications.map((r) => `${r.qualificationId}:${r.optionId}`).join(",")}-${p.renewsQualifications.map((q) => q.id).join(",")}`}
                   position={p}
                   allQualifications={allQualifications}
                   onDone={() => setEditingId(null)}

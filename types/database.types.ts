@@ -156,6 +156,58 @@ export type Database = {
           },
         ]
       }
+      availability_change_requests: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          id: string
+          message: string | null
+          shift_id: string
+          worker_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          shift_id: string
+          worker_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          shift_id?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_change_requests_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "availability_change_requests_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "availability_change_requests_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability_windows: {
         Row: {
           closes_at: string

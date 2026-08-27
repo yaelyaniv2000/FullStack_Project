@@ -25,7 +25,7 @@ function parseWindowFields(formData: FormData) {
   });
 }
 
-export type AvailabilityWindowState = Result<void> | undefined;
+export type AvailabilityWindowState = Result<{ id: string; label: string }> | undefined;
 
 export async function createAvailabilityWindow(
   _prevState: AvailabilityWindowState,
@@ -39,17 +39,22 @@ export async function createAvailabilityWindow(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("availability_windows").insert({
-    label: parsed.data.label,
-    opens_at: parsed.data.opensAt,
-    closes_at: parsed.data.closesAt,
-  });
-  if (error) {
+  const { data: window, error } = await supabase
+    .from("availability_windows")
+    .insert({
+      label: parsed.data.label,
+      opens_at: parsed.data.opensAt,
+      closes_at: parsed.data.closesAt,
+    })
+    .select()
+    .single();
+  if (error || !window) {
     return { success: false, error: "שגיאה ביצירת חלון הזמינות" };
   }
 
   revalidatePath("/admin/availability-windows");
-  return { success: true, data: undefined };
+  revalidatePath("/admin/shifts");
+  return { success: true, data: { id: window.id, label: window.label } };
 }
 
 export async function updateAvailabilityWindow(
@@ -78,7 +83,7 @@ export async function updateAvailabilityWindow(
   }
 
   revalidatePath("/admin/availability-windows");
-  return { success: true, data: undefined };
+  return { success: true, data: { id, label: parsed.data.label } };
 }
 
 export async function deleteAvailabilityWindow(id: string): Promise<Result<void>> {

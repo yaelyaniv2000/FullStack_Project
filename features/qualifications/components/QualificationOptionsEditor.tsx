@@ -58,6 +58,8 @@ export function QualificationOptionsEditor({
       <Button
         type="button"
         variant="outline"
+        size="sm"
+        className="w-fit"
         onClick={() => setRows([...rows, { label: "" }])}
       >
         <Plus className="size-4" />

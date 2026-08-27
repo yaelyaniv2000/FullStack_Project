@@ -15,7 +15,7 @@ export default async function PositionsPage() {
       <h1 className="text-2xl font-bold">ניהול תפקידים</h1>
 
       <div className="flex flex-col gap-6 md:flex-row">
-        <Card className="md:w-2/3">
+        <Card className="md:w-1/2">
           <CardHeader>
             <CardTitle>הוספת תפקיד חדש</CardTitle>
           </CardHeader>
@@ -24,7 +24,7 @@ export default async function PositionsPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:w-1/3">
+        <Card className="md:w-1/2">
           <CardHeader>
             <CardTitle>תפקידים קיימים ({positions.length})</CardTitle>
           </CardHeader>

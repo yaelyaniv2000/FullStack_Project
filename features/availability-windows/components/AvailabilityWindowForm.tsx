@@ -28,9 +28,14 @@ function splitIso(iso?: string): { date: string; time: string } {
 export function AvailabilityWindowForm({
   window,
   onDone,
+  onCreated,
 }: {
   window?: AvailabilityWindow;
   onDone?: () => void;
+  /** Fired only on a successful create (not edit), same pattern as PositionForm -- lets a caller
+   * embedding this form in a dialog (e.g. ShiftForm's "חלון זמינות חדש") select the newly
+   * created window immediately without waiting for a full page refresh. */
+  onCreated?: (window: { id: string; label: string }) => void;
 }) {
   const action = window
     ? updateAvailabilityWindow.bind(null, window.id)
@@ -48,8 +53,11 @@ export function AvailabilityWindowForm({
   const [closesTime, setClosesTime] = useState(initialCloses.time);
 
   useEffect(() => {
-    if (state?.success) onDone?.();
-  }, [state, onDone]);
+    if (state?.success) {
+      onDone?.();
+      if (!window && state.data) onCreated?.(state.data);
+    }
+  }, [state, onDone, onCreated, window]);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

@@ -4,9 +4,11 @@ import { ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getScheduleReview } from "@/features/scheduling/queries";
 import { listWorkers } from "@/features/accounts/queries";
+import { listChangeRequestsForWindow } from "@/features/availability/queries";
 import { GenerateScheduleButton } from "@/features/scheduling/components/GenerateScheduleButton";
 import { PublishAllButton } from "@/features/scheduling/components/PublishAllButton";
 import { ScheduleShiftsList } from "@/features/scheduling/components/ScheduleShiftsList";
+import { ChangeRequestsCard } from "@/features/availability/components/ChangeRequestsCard";
 
 export default async function ScheduleReviewPage({
   params,
@@ -16,7 +18,10 @@ export default async function ScheduleReviewPage({
   const { windowId } = await params;
   const review = await getScheduleReview(windowId);
   if (!review) notFound();
-  const workers = await listWorkers();
+  const [workers, changeRequests] = await Promise.all([
+    listWorkers(),
+    listChangeRequestsForWindow(windowId),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,6 +71,8 @@ export default async function ScheduleReviewPage({
           </CardContent>
         </Card>
       ) : null}
+
+      <ChangeRequestsCard windowId={windowId} requests={changeRequests} />
 
       <ScheduleShiftsList windowId={windowId} shifts={review.shifts} allWorkers={workers} />
     </div>

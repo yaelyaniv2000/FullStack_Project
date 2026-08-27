@@ -11,7 +11,7 @@ export default async function QualificationsPage() {
       <h1 className="text-2xl font-bold">ניהול כשירויות</h1>
 
       <div className="flex flex-col gap-6 md:flex-row">
-        <Card className="md:w-2/3">
+        <Card className="md:w-1/2">
           <CardHeader>
             <CardTitle>הוספת כשירות חדשה</CardTitle>
           </CardHeader>
@@ -20,7 +20,7 @@ export default async function QualificationsPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:w-1/3">
+        <Card className="md:w-1/2">
           <CardHeader>
             <CardTitle>כשירויות קיימות ({qualifications.length})</CardTitle>
           </CardHeader>

@@ -52,6 +52,7 @@ export function ShiftTemplatesList({
             <li key={t.id} className="rounded border p-3">
               {editingId === t.id ? (
                 <ShiftTemplateForm
+                  key={`${t.id}-${t.name}-${t.positions.map((p) => `${p.positionId}:${p.headcountNeeded}`).join(",")}`}
                   template={t}
                   allPositions={allPositions}
                   onDone={() => setEditingId(null)}

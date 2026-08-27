@@ -18,12 +18,16 @@ export function ShiftsList({
   allQualifications,
   allTemplates,
   allAvailabilityWindows,
+  readOnly = false,
 }: {
   shifts: Shift[];
-  allPositions: PositionRef[];
-  allQualifications: Qualification[];
-  allTemplates: ShiftTemplate[];
-  allAvailabilityWindows: AvailabilityWindow[];
+  allPositions?: PositionRef[];
+  allQualifications?: Qualification[];
+  allTemplates?: ShiftTemplate[];
+  allAvailabilityWindows?: AvailabilityWindow[];
+  /** Past shifts: view-only, per the same "already occurred -- can't edit, can only see who was
+   * assigned" rule already established for the (deferred) calendar's color states. */
+  readOnly?: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -42,11 +46,17 @@ export function ShiftsList({
   const normalizedQuery = query.trim().toLowerCase();
   const filteredShifts = normalizedQuery
     ? shifts.filter((s) =>
-        [s.name, s.location, s.date, ...s.positions.map((p) => p.positionName)]
+        [s.name, s.location, s.date, ...s.positions.map((p) => p.positionName), ...s.assignedWorkerNames]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(normalizedQuery)),
       )
     : shifts;
+
+  function statusBadge(s: Shift) {
+    if (s.publishedAt) return <Badge variant="default">פורסמה</Badge>;
+    if (s.assignedWorkerNames.length > 0) return <Badge variant="secondary">שובצה</Badge>;
+    return <Badge variant="outline">טיוטה</Badge>;
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -63,13 +73,14 @@ export function ShiftsList({
         <ul className="flex flex-col gap-3">
           {filteredShifts.map((s) => (
             <li key={s.id} className="rounded border p-3">
-              {editingId === s.id ? (
+              {!readOnly && editingId === s.id ? (
                 <ShiftForm
+                  key={`${s.id}-${s.name}-${s.date}-${s.startTime}-${s.endTime}-${s.location}-${s.availabilityWindowId}`}
                   shift={s}
-                  allPositions={allPositions}
-                  allQualifications={allQualifications}
-                  allTemplates={allTemplates}
-                  allAvailabilityWindows={allAvailabilityWindows}
+                  allPositions={allPositions!}
+                  allQualifications={allQualifications!}
+                  allTemplates={allTemplates!}
+                  allAvailabilityWindows={allAvailabilityWindows!}
                   onDone={() => setEditingId(null)}
                 />
               ) : (
@@ -83,9 +94,7 @@ export function ShiftsList({
                       {s.location ? (
                         <span className="text-sm text-muted-foreground">{s.location}</span>
                       ) : null}
-                      <Badge variant={s.publishedAt ? "default" : "outline"}>
-                        {s.publishedAt ? "פורסמה" : "טיוטה"}
-                      </Badge>
+                      {statusBadge(s)}
                       {s.availabilityWindowLabel ? (
                         <Badge variant="secondary">{s.availabilityWindowLabel}</Badge>
                       ) : null}
@@ -101,15 +110,27 @@ export function ShiftsList({
                         ))
                       )}
                     </div>
+                    {readOnly && s.assignedWorkerNames.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                        <span>משובצים:</span>
+                        {s.assignedWorkerNames.map((name) => (
+                          <Badge key={name} variant="outline">
+                            {name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setEditingId(s.id)}>
-                      עריכה
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(s.id)}>
-                      מחיקה
-                    </Button>
-                  </div>
+                  {!readOnly ? (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditingId(s.id)}>
+                        עריכה
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDelete(s.id)}>
+                        מחיקה
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </li>

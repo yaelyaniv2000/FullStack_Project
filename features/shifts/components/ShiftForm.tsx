@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Command,
   CommandEmpty,
@@ -26,6 +27,7 @@ import type { Shift } from "@/features/shifts/queries";
 import type { ShiftTemplate } from "@/features/shift-templates/queries";
 import type { Qualification } from "@/features/qualifications/queries";
 import type { AvailabilityWindow } from "@/features/availability-windows/queries";
+import { AvailabilityWindowForm } from "@/features/availability-windows/components/AvailabilityWindowForm";
 import { ShiftPositionsPicker, type PositionRef, type SelectedPosition } from "./ShiftPositionsPicker";
 
 const NO_WINDOW = "__none__";
@@ -49,6 +51,14 @@ export function ShiftForm({
   const action = shift ? updateShift.bind(null, shift.id) : createShift;
   const [state, formAction, pending] = useActionState<ShiftState, FormData>(action, undefined);
   const [windowId, setWindowId] = useState(shift?.availabilityWindowId ?? NO_WINDOW);
+  const [extraWindows, setExtraWindows] = useState<AvailabilityWindow[]>([]);
+  const [createWindowOpen, setCreateWindowOpen] = useState(false);
+  // Same dedup reasoning as ShiftPositionsPicker's extraPositions: a just-created window can
+  // end up back in `allAvailabilityWindows` once the page's server data catches up.
+  const combinedWindows = [
+    ...allAvailabilityWindows,
+    ...extraWindows.filter((w) => !allAvailabilityWindows.some((a) => a.id === w.id)),
+  ];
 
   // Bumped after a successful submit (clears the picker, same reasoning as PositionForm) and
   // whenever a template is chosen (remounts the picker with that template's positions as its
@@ -167,15 +177,15 @@ export function ShiftForm({
         <Input id="location" name="location" defaultValue={shift?.location ?? ""} />
       </div>
 
-      {allAvailabilityWindows.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <Label>חלון זמינות (אופציונלי)</Label>
+      <div className="flex flex-col gap-2">
+        <Label>חלון זמינות (אופציונלי)</Label>
+        <div className="flex flex-wrap items-center gap-2">
           <Select
             value={windowId}
             onValueChange={(v) => setWindowId(v as string)}
             items={[
               { value: NO_WINDOW, label: "ללא" },
-              ...allAvailabilityWindows.map((w) => ({ value: w.id, label: w.label })),
+              ...combinedWindows.map((w) => ({ value: w.id, label: w.label })),
             ]}
           >
             <SelectTrigger>
@@ -183,20 +193,41 @@ export function ShiftForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_WINDOW}>ללא</SelectItem>
-              {allAvailabilityWindows.map((w) => (
+              {combinedWindows.map((w) => (
                 <SelectItem key={w.id} value={w.id}>
                   {w.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <input
-            type="hidden"
-            name="availabilityWindowId"
-            value={windowId === NO_WINDOW ? "" : windowId}
-          />
+          <Button type="button" variant="outline" size="sm" onClick={() => setCreateWindowOpen(true)}>
+            <Plus className="size-4" />
+            חלון זמינות חדש
+          </Button>
         </div>
-      ) : null}
+        <input
+          type="hidden"
+          name="availabilityWindowId"
+          value={windowId === NO_WINDOW ? "" : windowId}
+        />
+      </div>
+
+      <Dialog open={createWindowOpen} onOpenChange={setCreateWindowOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>פתיחת חלון זמינות חדש</DialogTitle>
+          </DialogHeader>
+          <AvailabilityWindowForm
+            onCreated={(newWindow) => {
+              setExtraWindows((prev) =>
+                prev.some((w) => w.id === newWindow.id) ? prev : [...prev, { ...newWindow, opensAt: "", closesAt: "" }],
+              );
+              setWindowId(newWindow.id);
+              setCreateWindowOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       <ShiftPositionsPicker
         key={pickerKey}

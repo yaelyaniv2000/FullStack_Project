@@ -24,7 +24,12 @@ export function ScheduleShiftsList({
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = normalizedQuery
     ? shifts.filter((s) =>
-        [s.shiftName, s.date, ...s.positions.map((p) => p.positionName)]
+        [
+          s.shiftName,
+          s.date,
+          ...s.positions.map((p) => p.positionName),
+          ...s.positions.flatMap((p) => p.assignments.map((a) => a.workerName)),
+        ]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(normalizedQuery)),
       )

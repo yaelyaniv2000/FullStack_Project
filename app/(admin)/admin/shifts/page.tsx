@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ShiftForm } from "@/features/shifts/components/ShiftForm";
 import { ShiftsList } from "@/features/shifts/components/ShiftsList";
@@ -9,7 +10,7 @@ import { listAvailabilityWindows } from "@/features/availability-windows/queries
 
 export default async function ShiftsPage() {
   const [shifts, positions, qualifications, templates, availabilityWindows] = await Promise.all([
-    listShifts(),
+    listShifts({ scope: "upcoming" }),
     listPositions(),
     listQualifications(),
     listShiftTemplates(),
@@ -18,10 +19,15 @@ export default async function ShiftsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">ניהול משמרות</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">ניהול משמרות</h1>
+        <Link href="/admin/shifts/past" className="text-sm text-muted-foreground hover:underline">
+          לצפייה במשמרות ישנות ←
+        </Link>
+      </div>
 
       <div className="flex flex-col gap-6 md:flex-row">
-        <Card className="md:w-2/3">
+        <Card className="md:w-1/3">
           <CardHeader>
             <CardTitle>הוספת משמרת חדשה</CardTitle>
           </CardHeader>
@@ -35,7 +41,7 @@ export default async function ShiftsPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:w-1/3">
+        <Card className="md:w-2/3">
           <CardHeader>
             <CardTitle>משמרות קיימות ({shifts.length})</CardTitle>
           </CardHeader>

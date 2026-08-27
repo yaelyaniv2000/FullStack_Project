@@ -17,6 +17,10 @@ export type Shift = {
   availabilityWindowId: string | null;
   availabilityWindowLabel: string | null;
   positions: ShiftPosition[];
+  /** Names of workers currently assigned to this shift (any position) -- drives the "שובצה"
+   * status badge (has assignments, not yet published) and lets the shift search match by
+   * assigned-worker name, per user feedback (2026-08-28). */
+  assignedWorkerNames: string[];
 };
 
 type RawShift = {
@@ -34,19 +38,27 @@ type RawShift = {
     headcount_needed: number;
     position: { name: string } | null;
   }[];
+  assignments: { worker: { full_name: string } | null }[];
 };
 
-export async function listShifts(): Promise<Shift[]> {
+export async function listShifts({
+  scope = "all",
+}: { scope?: "all" | "upcoming" | "past" } = {}): Promise<Shift[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const today = new Date().toISOString().slice(0, 10);
+  let query = supabase
     .from("shifts")
     .select(
       `*,
       window:availability_windows(label),
-      links:shift_positions!shift_positions_shift_id_fkey(position_id, headcount_needed, position:positions!shift_positions_position_id_fkey(name))`,
+      links:shift_positions!shift_positions_shift_id_fkey(position_id, headcount_needed, position:positions!shift_positions_position_id_fkey(name)),
+      assignments:assignments!assignments_shift_id_fkey(worker:profiles!assignments_worker_id_fkey(full_name))`,
     )
     .order("date", { ascending: true })
     .order("start_time", { ascending: true });
+  if (scope === "upcoming") query = query.gte("date", today);
+  if (scope === "past") query = query.lt("date", today);
+  const { data } = await query;
 
   return ((data as unknown as RawShift[]) ?? []).map((s) => ({
     id: s.id,
@@ -63,6 +75,9 @@ export async function listShifts(): Promise<Shift[]> {
       positionName: l.position?.name ?? "",
       headcountNeeded: l.headcount_needed,
     })),
+    assignedWorkerNames: [
+      ...new Set(s.assignments.map((a) => a.worker?.full_name).filter((n): n is string => !!n)),
+    ],
   }));
 }
 

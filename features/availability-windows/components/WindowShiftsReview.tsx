@@ -80,7 +80,12 @@ export function WindowShiftsReview({ shifts }: { shifts: WindowShiftAvailability
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = normalizedQuery
     ? shifts.filter((s) =>
-        [s.shiftName, s.date, ...s.positions.map((p) => p.positionName)]
+        [
+          s.shiftName,
+          s.date,
+          ...s.positions.map((p) => p.positionName),
+          ...s.responses.map((r) => r.workerName),
+        ]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(normalizedQuery)),
       )

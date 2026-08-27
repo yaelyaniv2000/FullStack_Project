@@ -8,6 +8,7 @@ import {
 } from "@/features/worker-qualifications/queries";
 import { listActivePairingConflicts } from "@/features/scheduling/queries";
 import { listWindowsPendingApproval } from "@/features/availability-windows/queries";
+import { listPendingChangeRequests } from "@/features/availability/queries";
 import { getAppSettings } from "@/features/settings/queries";
 
 /**
@@ -18,14 +19,16 @@ import { getAppSettings } from "@/features/settings/queries";
  */
 export async function AdminDashboard() {
   const { expiringSoonDays } = await getAppSettings();
-  const [understaffed, pending, upcoming, expiring, pairingConflicts, pendingApproval] = await Promise.all([
-    listUnderstaffedShifts(5),
-    listPendingApprovals(5),
-    listUpcomingShifts(5),
-    listExpiringQualifications(expiringSoonDays, 5),
-    listActivePairingConflicts(5),
-    listWindowsPendingApproval(5),
-  ]);
+  const [understaffed, pending, upcoming, expiring, pairingConflicts, pendingApproval, changeRequests] =
+    await Promise.all([
+      listUnderstaffedShifts(5),
+      listPendingApprovals(5),
+      listUpcomingShifts(5),
+      listExpiringQualifications(expiringSoonDays, 5),
+      listActivePairingConflicts(5),
+      listWindowsPendingApproval(5),
+      listPendingChangeRequests(5),
+    ]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -45,6 +48,31 @@ export async function AdminDashboard() {
                     {w.label} · {w.unpublishedCount} משמרות לא מפורסמות
                   </span>
                   <Link href={`/admin/schedule/${w.id}`} className="text-sm underline">
+                    לצפייה ←
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {changeRequests.length > 0 ? (
+        <Card className="border-destructive sm:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              בקשות שינוי זמינות ממתינות
+              <Badge variant="destructive">{changeRequests.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-2">
+              {changeRequests.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>
+                    {r.workerName} · <span dir="ltr">{r.date} {r.startTime.slice(0, 5)}</span>
+                  </span>
+                  <Link href={`/admin/schedule/${r.windowId}`} className="text-sm underline">
                     לצפייה ←
                   </Link>
                 </li>
