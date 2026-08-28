@@ -17,8 +17,24 @@ const WEEKDAY_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
  * shift the calendar date by a day depending on the browser's timezone offset. `shift.date` is a
  * plain Postgres `date` (no time/timezone component), so the grid needs the same plain
  * year/month/day construction to line up with it. */
-function dateKey(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function addDays(d: Date, days: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+}
+
+function addMonths(d: Date, months: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + months, 1);
+}
+
+function startOfWeek(d: Date): Date {
+  return addDays(startOfDay(d), -d.getDay());
 }
 
 const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
@@ -27,17 +43,39 @@ const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
   published: "bg-primary text-primary-foreground",
 };
 
-type CalendarCell = { day: number; key: string } | null;
+type CalendarCell = { date: Date; key: string } | null;
 
-function buildMonthGrid(year: number, month: number): CalendarCell[] {
+function buildMonthGrid(anchor: Date): CalendarCell[] {
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const cells: CalendarCell[] = [];
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day++) cells.push({ day, key: dateKey(year, month, day) });
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    cells.push({ date, key: dateKey(date) });
+  }
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
+}
+
+function buildWeekRow(anchor: Date): CalendarCell[] {
+  const start = startOfWeek(anchor);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(start, i);
+    return { date, key: dateKey(date) };
+  });
+}
+
+/** D.M -- D.M, deliberately wrapped in dir="ltr": a dash-separated numeric range is exactly the
+ * bidi-reordering case CLAUDE.md's date/time rule warns about. */
+function formatWeekRange(anchor: Date): string {
+  const start = startOfWeek(anchor);
+  const end = addDays(start, 6);
+  const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
+  return `${fmt(start)}–${fmt(end)}`;
 }
 
 export function ShiftsCalendar({
@@ -54,10 +92,10 @@ export function ShiftsCalendar({
   onDeleted?: (id: string) => void;
 }) {
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
+  const [calendarMode, setCalendarMode] = useState<"month" | "week">("month");
+  const [anchor, setAnchor] = useState(startOfDay(today));
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayKey = dateKey(today);
 
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>();
@@ -69,29 +107,21 @@ export function ShiftsCalendar({
     return map;
   }, [shifts]);
 
-  const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
+  const cells = useMemo(
+    () => (calendarMode === "month" ? buildMonthGrid(anchor) : buildWeekRow(anchor)),
+    [calendarMode, anchor],
+  );
 
-  function goToPrevMonth() {
-    if (month === 0) {
-      setYear((y) => y - 1);
-      setMonth(11);
-    } else {
-      setMonth((m) => m - 1);
-    }
+  function goToPrev() {
+    setAnchor((a) => (calendarMode === "month" ? addMonths(a, -1) : addDays(a, -7)));
   }
 
-  function goToNextMonth() {
-    if (month === 11) {
-      setYear((y) => y + 1);
-      setMonth(0);
-    } else {
-      setMonth((m) => m + 1);
-    }
+  function goToNext() {
+    setAnchor((a) => (calendarMode === "month" ? addMonths(a, 1) : addDays(a, 7)));
   }
 
   function goToToday() {
-    setYear(today.getFullYear());
-    setMonth(today.getMonth());
+    setAnchor(startOfDay(today));
   }
 
   async function handleDelete(id: string) {
@@ -104,14 +134,16 @@ export function ShiftsCalendar({
     }
   }
 
+  const cellMinHeight = calendarMode === "month" ? "min-h-24" : "min-h-40";
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          <Button type="button" variant="outline" size="icon" onClick={goToPrevMonth} aria-label="חודש קודם">
+          <Button type="button" variant="outline" size="icon" onClick={goToPrev} aria-label="הקודם">
             <ChevronRight className="size-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" onClick={goToNextMonth} aria-label="חודש הבא">
+          <Button type="button" variant="outline" size="icon" onClick={goToNext} aria-label="הבא">
             <ChevronLeft className="size-4" />
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={goToToday}>
@@ -119,8 +151,30 @@ export function ShiftsCalendar({
           </Button>
         </div>
         <span className="font-medium">
-          {HEBREW_MONTHS[month]} {year}
+          {calendarMode === "month" ? (
+            `${HEBREW_MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
+          ) : (
+            <span dir="ltr">{formatWeekRange(anchor)}</span>
+          )}
         </span>
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={calendarMode === "month" ? "default" : "outline"}
+            onClick={() => setCalendarMode("month")}
+          >
+            חודש
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={calendarMode === "week" ? "default" : "outline"}
+            onClick={() => setCalendarMode("week")}
+          >
+            שבוע
+          </Button>
+        </div>
       </div>
 
       {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
@@ -135,7 +189,7 @@ export function ShiftsCalendar({
 
       <div className="grid grid-cols-7 gap-1">
         {cells.map((cell, i) => {
-          if (!cell) return <div key={i} className="min-h-24 rounded border border-transparent" />;
+          if (!cell) return <div key={i} className={`${cellMinHeight} rounded border border-transparent`} />;
 
           const dayShifts = shiftsByDate.get(cell.key) ?? [];
           const isToday = cell.key === todayKey;
@@ -143,11 +197,11 @@ export function ShiftsCalendar({
           return (
             <div
               key={cell.key}
-              className={`flex min-h-24 flex-col gap-1 rounded border p-1 ${
+              className={`flex ${cellMinHeight} flex-col gap-1 rounded border p-1 ${
                 isToday ? "border-primary" : "border-border"
               }`}
             >
-              <span className="text-xs text-muted-foreground">{cell.day}</span>
+              <span className="text-xs text-muted-foreground">{cell.date.getDate()}</span>
               <div className="flex flex-col gap-1">
                 {dayShifts.map((s) => {
                   const editable = isShiftEditable(s);
@@ -162,7 +216,11 @@ export function ShiftsCalendar({
                         }`}
                         title={s.name ?? undefined}
                       >
-                        <span dir="ltr">{s.startTime.slice(0, 5)}</span>
+                        <span dir="ltr">
+                          {calendarMode === "week"
+                            ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}`
+                            : s.startTime.slice(0, 5)}
+                        </span>
                         {s.name ? ` ${s.name}` : ""}
                       </button>
                       {editable ? (
