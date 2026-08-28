@@ -773,12 +773,40 @@ opt-in — see `docs/test-spec.md` for why it's kept separate).
 
 ## Phase 7 — Scale, security write-ups & deployment polish
 
-- [ ] 🧭 Finalize the scale doc based on what you actually built (indexes added, pagination used,
-      client/server split, known limits)
-- [ ] 🧭 Finalize the security doc based on what you actually built (auth, RLS-based
-      authorization, input validation, secret management, known remaining risks)
-- [ ] 🔌 Confirm final deploy on Vercel works end-to-end from a fresh browser/incognito session
-- [ ] 🧭 Write local run instructions + env var explanation for the README
+- [X] 🧭 Finalize the scale doc based on what you actually built — `docs/scale.md`: expected load
+      (squadron scale, dozens–hundreds of rows, not internet scale), which queries could get heavy
+      (`getLatestRenewalDates` scanning all assignment history is the one without a natural
+      ceiling — flagged as the top future-improvement candidate), the four already-existing
+      indexes and exactly which query each serves, why no `select("*")`-on-lists and no N+1 (FK-
+      hint embeds), why no pagination yet (real, deliberate limitation given actual data volumes,
+      not an oversight — documented with what would change the calculus), the client/server split
+      (Server Components + Server Actions, no client-state library, per CLAUDE.md), and concrete
+      future-scale steps in priority order.
+- [X] 🧭 Finalize the security doc based on what you actually built — `docs/security.md`: the
+      two-layer authorization model (app-guard + RLS, with the `assignments` publish-timing
+      policy as the standout non-role-based example), input validation (Zod at the app layer +
+      DB triggers as defense-in-depth), why there's no separate API surface to secure (Server
+      Actions only, with Next.js's built-in Origin/CSRF check and encrypted action IDs — confirmed
+      by reading `node_modules/next/dist/docs` directly, per house rule), secret management
+      (confirmed `SUPABASE_SERVICE_ROLE_KEY` is referenced only in two server-only files, never a
+      `"use client"` one), and an honest remaining-risks section (no rate limiting, no audit log,
+      no MFA, no CSP headers).
+- [X] 🧭 Write local run instructions + env var explanation for the README — `README.md` rewritten
+      with the full from-scratch path (create a Supabase project → apply migrations via CLI or
+      SQL Editor → seed → configure auth settings manually, since `config.toml`'s auth section is
+      documented-but-not-pushed by design, see its own note → env vars → bootstrap the first admin
+      → `npm run dev`), plus a testing section. **Real gap found and closed while writing this**:
+      there was no way to create the app's *first* admin account at all — `/admin/personnel`
+      always creates a `worker`, and account creation requires an existing admin session to reach
+      that page in the first place. Fixed with a new one-off bootstrap script
+      (`scripts/create-admin.mjs`, `npm run create-admin`), the same two-step Admin-API pattern
+      `createWorkerAccount` uses but setting `role: "admin"` directly via the service-role client.
+      Verified against the real dev Supabase project (created a real account, confirmed the
+      `profiles` row via a direct query, confirmed the `npm run create-admin --` argument-passing
+      documented in the README actually works, deleted the test account after).
+- [ ] 🔌 Confirm final deploy on Vercel works end-to-end from a fresh browser/incognito session —
+      blocked on pushing this phase's commit (not done yet, pending user confirmation since a
+      push affects the live deployment); local `npm run build` already passes clean.
 
 ## Phase 8 — Presentation
 

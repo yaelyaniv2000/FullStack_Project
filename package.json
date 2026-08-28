@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.mts"
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "create-admin": "node scripts/create-admin.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
