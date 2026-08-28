@@ -1,10 +1,14 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * Unit-test scope only for now (Phase 5, brought forward from Phase 6 to test the scheduling
- * heuristic -- see TODO.md's test-infra sequencing note, 2026-08-27). No jsdom/React plugin yet
- * since these tests exercise plain functions, not components -- add those when Phase 6 brings in
- * React Testing Library.
+ * Fast, dependency-free suite: pure-logic unit tests (node environment) plus React Testing
+ * Library component tests (jsdom, opted into per-file via a `// @vitest-environment jsdom`
+ * docblock -- see e.g. features/availability/__tests__/AvailabilityShiftRow.test.tsx). No React
+ * plugin needed: esbuild already transforms JSX per tsconfig's `"jsx": "react-jsx"`.
+ *
+ * Deliberately excludes tests/integration/** -- those hit a real Supabase project (see
+ * vitest.integration.config.mts) and would fail for anyone running `npm test` without a
+ * configured .env.local, which this config must not do.
  */
 export default defineConfig({
   resolve: {
@@ -12,5 +16,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    exclude: ["**/node_modules/**", "tests/integration/**"],
+    setupFiles: ["./tests/setup-rtl.ts"],
   },
 });

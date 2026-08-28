@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
 
-const qualificationSchema = z.object({
+export const qualificationSchema = z.object({
   name: z.string().min(1, "נא להזין שם"),
   renewalIntervalDays: z
     .number()

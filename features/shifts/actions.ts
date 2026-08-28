@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
 
-const shiftSchema = z
+export const shiftSchema = z
   .object({
     name: z.string().nullable(),
     date: z.string().min(1, "נא לבחור תאריך"),

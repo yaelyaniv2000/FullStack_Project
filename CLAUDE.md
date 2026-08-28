@@ -235,6 +235,19 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
   default email sending is rate-limited to a few/hour — a real risk during a live demo) and
   building real email invites now (an easy, isolated addition later — swap one function, nothing
   else changes, see the auth conversation in project history for the full reasoning).
+- **No browser-based e2e (Playwright) — confirmed impossible on this dev machine, not skipped by
+  choice.** `npx playwright install chromium` fails outright with `Playwright does not support
+  chromium on mac13-arm64`, a hard platform wall, not a missing-download issue. Phase 6's testing
+  strategy substitutes: React Testing Library (`jsdom`) for component-level UI, and a
+  `tests/integration/` layer that runs the real Server Actions against a real Supabase project —
+  ephemeral test accounts via the Auth Admin API, a real signed-in session, with only
+  `@/lib/supabase/server`'s `createClient()` and `next/cache`'s `revalidatePath` swapped for test
+  doubles (the only two pieces that need a real Next.js HTTP request to function). This exercises
+  real RLS end to end, which is arguably the more important boundary here anyway (see the
+  `assignments` publish-timing bullet above). Genuinely visual concerns no `jsdom`-based tool can
+  catch (RTL bidi date rendering, responsive layout) became a documented manual regression
+  checklist — itself one of the assignment's named acceptable tools, not a fallback. Full writeup:
+  `docs/test-spec.md`.
 
 ## Deployment gotchas
 
@@ -257,8 +270,11 @@ detailed technical plan doc — `TODO.md` Phase 0 — before real implementation
 - `docs/technical-plan.md` — detailed technical plan (course deliverable #4): exact folder/
   component structure, column-level DB schema, CRUD-by-entity table, server action signatures,
   the scheduling heuristic's actual algorithm, state/error/validation conventions, core UX.
+- `docs/test-spec.md` — test spec (course deliverable #5), structured around the assignment's
+  seven required test categories, each mapped to the actual test file(s) that cover it (unit,
+  component, integration, or documented manual) plus how to run each layer.
 - `TODO.md` — working task checklist, tagged 🧭 Planning / 💻 Coding / 🔌 External.
 - `CLAUDE.md` (this file) — durable decisions and framing; update in place when direction shifts.
 
-Test spec, scale doc, and security doc (course deliverables #5-#9) don't exist yet — see
-`TODO.md` Phase 0 for what's next.
+Scale doc and security doc (course deliverables #7-#8) don't exist yet — see `TODO.md` Phase 7
+for what's next.

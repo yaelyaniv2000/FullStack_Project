@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
 
-const windowSchema = z
+export const windowSchema = z
   .object({
     label: z.string().min(1, "נא להזין שם"),
     opensAt: z.string().min(1, "נא לבחור תאריך פתיחה"),

@@ -21,8 +21,11 @@ is yours to edit freely.
       structure, component structure, DB schema, CRUD operations list, API description,
       scheduling heuristic + expiry logic, state management, error handling, input validation,
       core UX)
-- [ ] 🧭 Write the test spec doc (which flows/edge cases/permissions need tests — content, not
-      code yet)
+- [X] 🧭 Write the test spec doc (which flows/edge cases/permissions need tests — content, not
+      code yet) — `docs/test-spec.md`, written together with Phase 6's implementation (see there)
+      rather than strictly before, since by the time Phase 6 started the concrete constraint that
+      shapes the whole doc (Playwright can't run on this dev machine) was already known and best
+      resolved by writing the spec and the tests as one pass.
 - [ ] 🧭 Draft the scale doc (can start now with expected assumptions; refine once built)
 - [ ] 🧭 Draft the security doc (can start now with the role-based access plan; refine once built)
 
@@ -704,18 +707,69 @@ was genuinely new, plus two real bugs she hit while testing.
 
 ## Phase 6 — Testing
 
-- [ ] 💻 Extend the Vitest setup (already installed in Phase 5 for the heuristic tests) with
-      React Testing Library + Playwright for component/e2e coverage
-- [ ] 💻 ~~Unit tests for the scheduling algorithm~~ — moved to Phase 5, see there (test-infra
+**Playwright ruled out for real, 2026-08-28**: `npx playwright install chromium` fails outright
+with `Playwright does not support chromium on mac13-arm64` — not a missing-download issue, a hard
+platform-support wall on this dev machine. Confirmed before touching the original plan, not
+assumed. Adapted strategy (see `docs/test-spec.md` for the full writeup): React Testing Library
+for component-level UI (works fine in `jsdom`, no real browser needed), and a new integration
+layer (`tests/integration/`) that calls the real Server Actions against a real Supabase project —
+via ephemeral test accounts created through the Auth Admin API and a real signed-in session, with
+only `@/lib/supabase/server`'s `createClient()` and `next/cache`'s `revalidatePath` swapped for
+test doubles (the two pieces of Next.js request plumbing that don't exist outside a real HTTP
+request) — instead of a Playwright click-through. This exercises real RLS and real Postgres, which
+is arguably the more important boundary for this app's authorization model anyway (see CLAUDE.md's
+"assignments has no status column" bullet). Genuinely visual concerns (RTL bidi date rendering,
+responsive layout) that no jsdom-based tool can catch became a documented manual regression
+checklist instead — itself one of the assignment's named acceptable tools, not a fallback.
+
+- [X] 💻 Extend the Vitest setup (already installed in Phase 5 for the heuristic tests) with
+      React Testing Library for component coverage; Playwright dropped per the above (kept as a
+      devDependency but unusable on this machine — not removed, in case a future environment can
+      run it). `tests/setup-rtl.ts` (jest-dom matchers + RTL's `cleanup` after each test — the
+      latter isn't automatic and its absence caused real cross-test leakage on the first run,
+      caught immediately by a failing "multiple elements found" test, not silently). One
+      component test written: `features/availability/__tests__/AvailabilityShiftRow.test.tsx`
+      (optimistic toggle, conditional badge, `dir="ltr"` date rendering).
+- [X] 💻 ~~Unit tests for the scheduling algorithm~~ — moved to Phase 5, see there (test-infra
       sequencing decision, 2026-08-27)
-- [ ] 💻 Unit tests for qualification expiry/renewal logic (expiry computed correctly, renewal
-      triggers only for the right position, doesn't renew for unrelated positions)
-- [ ] 💻 Tests for authorization boundaries (Admin-only actions blocked for Workers, a worker
-      can't see/edit another worker's data)
-- [ ] 💻 End-to-end test(s) for the core flow: create shift → submit availability → generate
-      schedule → publish → worker sees shift
-- [ ] 🧭 Document any manual test cases for places automation isn't practical (per the test spec
-      doc)
+- [X] 💻 Unit tests for qualification expiry/renewal logic — `computeExpiresOn` (in
+      `features/worker-qualifications/queries.ts`) exported and unit-tested directly
+      (`features/worker-qualifications/__tests__/computeExpiresOn.test.ts`): never-expires,
+      plain-interval, renewal-date-extends-expiry, the `>` boundary case, month/year rollover.
+      `getLatestRenewalDates` (the DB-querying half that finds *which* position renews *which*
+      qualification) is covered by the integration suite instead — it's a real join across
+      `position_renews_qualifications`/`assignments`/`shifts`, not something worth mocking.
+- [X] 💻 Tests for authorization boundaries — two layers, both tested (`tests/integration/
+      authorization.test.ts`): the app-layer guard (`requireAdmin`/`requireWorker`, also unit-
+      tested fast/mocked in `lib/__tests__/auth.test.ts`) and the real boundary underneath it,
+      Postgres RLS, against a real Supabase project with ephemeral test accounts. Confirmed: a
+      worker calling an admin-only Server Action is redirected (not just refused data); a worker
+      can't read another worker's `worker_qualifications` rows; a worker can't create or even
+      read `shift_templates`; a worker can't see their own assignment before its shift is
+      published, only after (the timing-based rule, not just a role check) — admin sees it
+      regardless. All cleaned up afterward (verified via a scratch script: zero leftover
+      `__test__`-prefixed rows or users after a run) — caught and fixed one real bug in the test
+      itself this way: an early version silently dropped a qualification from its own cleanup
+      list without checking whether the delete it was tracking had actually succeeded.
+- [X] 💻 End-to-end test(s) for the core flow — `tests/integration/core-flow.test.ts`: create
+      position + availability window + shift → worker submits availability → admin generates
+      the schedule (real heuristic call, fills the slot) → worker can't see it yet → admin
+      publishes → worker now sees the assignment *and* a notification, read via the worker's own
+      real session (not the service-role client) — proving RLS actually grants it, not just that
+      the row exists.
+- [X] 🧭 Document manual test cases for places automation isn't practical — `docs/test-spec.md`'s
+      "בדיקות ידניות מתועדות" section (RTL/bidi date rendering, responsive layout, a fresh
+      worker login, the pairing-conflict banner staying visible after publish).
+- [X] 💻 Invalid-input tests (added to this phase, not originally a separate TODO line, per
+      re-reading the assignment's actual test-spec requirements — see `docs/test-spec.md` §2):
+      one representative Zod schema per distinct validation shape in the app (`shiftSchema`'s
+      cross-field end-after-start refine, `createWorkerSchema`'s email/password format,
+      `qualificationSchema`'s positive-integer-or-null renewal interval, `windowSchema`'s
+      cross-field closes-after-opens refine).
+
+**Phase 6 complete.** 68 automated tests total: 55 in `npm test` (unit + component, always
+green, no external dependencies) + 13 in `npm run test:integration` (real Supabase project,
+opt-in — see `docs/test-spec.md` for why it's kept separate).
 
 ## Phase 7 — Scale, security write-ups & deployment polish
 

@@ -30,7 +30,7 @@ type Row = {
  * completed (published, end time passed) shifts where the worker fulfilled a position that
  * renews this qualification -- see getLatestRenewalDates.
  */
-function computeExpiresOn(
+export function computeExpiresOn(
   obtainedAt: string,
   renewalIntervalDays: number | null,
   latestRenewalDate?: string,
