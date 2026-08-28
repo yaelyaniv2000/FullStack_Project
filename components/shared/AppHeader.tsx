@@ -39,7 +39,7 @@ export function AppHeader({
         </SheetTrigger>
         <SheetContent side="right">
           <SheetHeader>
-            <SheetTitle>ניווט</SheetTitle>
+            <SheetTitle>תפריט</SheetTitle>
           </SheetHeader>
           <nav className="grid grid-cols-1 gap-3 p-4">
             {links.map((link) => (

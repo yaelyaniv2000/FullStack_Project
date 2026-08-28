@@ -33,7 +33,7 @@ export function QualificationOptionsEditor({
 
   return (
     <div className="flex flex-col gap-2">
-      <Label>אפשרויות בחירה (השאירו ריק אם הכשירות בינארית — יש/אין)</Label>
+      <Label>יצירת אופציות (השאירו ריק אם הכשירות בינארית — יש/אין)</Label>
       {rows.map((row, i) => (
         <div key={i} className="flex gap-2">
           <input type="hidden" name="optionId" value={row.id ?? ""} />

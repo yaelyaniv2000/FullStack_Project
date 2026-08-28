@@ -111,14 +111,14 @@ export function SelfReportQualificationForm({
 
       {needsOption ? (
         <div className="flex flex-col gap-2">
-          <Label>אפשרות</Label>
+          <Label>סוג</Label>
           <Select
             value={optionId ?? ""}
             onValueChange={(v) => setOptionId(v as string)}
             items={selectedQualification!.options.map((o) => ({ value: o.id, label: o.label }))}
           >
             <SelectTrigger>
-              <SelectValue placeholder="בחירת אפשרות" />
+              <SelectValue placeholder="בחירת סוג" />
             </SelectTrigger>
             <SelectContent>
               {selectedQualification!.options.map((o) => (
