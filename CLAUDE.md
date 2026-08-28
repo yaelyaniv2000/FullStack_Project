@@ -19,6 +19,23 @@ directly, not assumed. `docs/technical-plan.md` originally said `middleware.ts` 
 training data, grep `node_modules/next/dist/docs/` for it first — this is cheap and has already
 caught one real mistake.
 
+**Second real incident, 2026-08-28 — a genuine production outage, not just a doc mismatch**: a
+`"use server"` file may **only** export async functions (plus type-only exports, which are erased
+at compile time and don't count) — exporting anything else, e.g. a Zod schema `const`, throws `A
+"use server" file can only export async functions, found object` at runtime. **`npm run build`
+does not catch this** — it compiled cleanly both times this was introduced and fixed; the failure
+only appears when that specific module chunk is actually evaluated in production (surfaced as a
+500 + a generic React "error occurred in the Server Components render" on the client, with the
+real cause only visible in Vercel's function logs). Hit this for real: four `features/*/actions.ts`
+files each got `export const xSchema = z.object(...)` added (to make the schema unit-testable),
+which broke `createShift`, `createQualification`, `createAvailabilityWindow`, and
+`createWorkerAccount` in production simultaneously until diagnosed from a user's bug report and
+the Vercel log stack trace. **Rule going forward**: a Zod schema (or any other non-function value)
+that a `"use server"` action needs and that a test also needs to import directly belongs in its
+own plain `schema.ts` file in the same feature folder, imported by both — never exported from the
+action file itself. `npm run build` passing is not evidence this rule is being followed; check
+the export list by hand (`grep "^export const"`) when adding to a `"use server"` file.
+
 ## What this is
 
 Final project for the "Internet Technologies" course (RUNI CS 2026, Full-Stack track).

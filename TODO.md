@@ -816,6 +816,41 @@ opt-in — see `docs/test-spec.md` for why it's kept separate).
 
 **Phase 7 complete.**
 
+## Post-Phase-7 production incident (2026-08-28, user bug report)
+
+User reported a hard error screen when creating a new worker on the live app. Traced end to end
+from her report, not guessed: her browser console showed a 500 on the `personnel` request plus a
+minified React error #441; looked that code up (`"An error occurred in the Server Components
+render"` — a server-side failure, not a client one) and checked the DB directly first to see
+whether the worker had actually been created despite the error (confirmed no new row — the
+failure happened before any write, ruling out a partial-success case). Asked her to pull the
+actual stack trace from Vercel's logs rather than guessing further, which gave the real answer
+immediately: `A "use server" file can only export async functions, found object`.
+
+**Root cause**: Phase 6 added `export const xSchema = z.object(...)` to four `"use server"` action
+files (`features/{shifts,accounts,qualifications,availability-windows}/actions.ts`) so their Zod
+schemas could be unit-tested directly — a real Next.js constraint violation that `npm run build`
+never caught (confirmed by rebuilding clean both before and after the fix). This broke four core
+admin flows simultaneously in production — create shift, create qualification, create
+availability window, create worker account — from the moment that commit deployed until this was
+diagnosed and fixed, several hours later. See `CLAUDE.md`'s second "concrete proof this matters"
+incident for the full rule going forward.
+
+**Fix**: moved each schema into its own plain `features/*/schema.ts` (no `"use server"`), imported
+by both the action file and its test — `features/{shifts,accounts,qualifications,
+availability-windows}/schema.ts`. Verified: `npm test` (55/55) and a clean `npm run build` both
+still pass, grepped every `"use server"` file in the app for any remaining non-function/non-type
+export (none found — confirmed this was exactly four files, not more), pushed, and confirmed the
+new deployment succeeded. Full browser-based reverification (actually clicking "create worker" in
+production) is the user's to confirm next, since no local browser automation is available on this
+machine (see `docs/test-spec.md`) — asked her to retry.
+
+**Process gap this exposes**: nothing in the automated test suite would have caught this, since
+Vitest never bundles a file through Next.js's own "use server" export-checking pass — it only
+imports the schema constant directly, which works fine in isolation. Worth remembering next time
+a schema/type is pulled out of an action file "just for testing": the *destination* file mattered
+more than the fact that a test could still import it.
+
 ## Phase 8 — Presentation
 
 - [ ] 🧭 Prepare the 10–15 minute presentation covering: problem, users, business value,
