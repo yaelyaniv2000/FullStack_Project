@@ -38,9 +38,9 @@ design isn't tied to this org's specifics even though only one org uses it in pr
 - **Worker (personnel)** — views their own qualifications and expiry status, submits
   availability, views published shifts.
 
-**[TBD]** Can workers self-report qualifications, or must the admin be the one who grants/
-confirms them? Leaning toward admin-granted/confirmed, since things like rank or certifications
-need an authoritative source, not self-declaration.
+**Decided and built**: workers can self-report a qualification, but it stays `pending` until an
+admin approves it — only approved qualifications count toward schedule matching (see the "Open
+questions" checklist below and `/my-qualifications`'s self-report flow).
 
 ## מי הלקוח
 The squadron — a single organization. The contact met during the user interview is the primary
@@ -146,9 +146,14 @@ incrementally, not needed to start building — see note above).
       worker per scheduling round); squadron-specific ones (e.g. seniority) get added as new
       types once known — see `docs/technical-plan.md`.
 - [ ] How far in advance is availability collected, and how often does the cycle repeat?
-- [ ] Preferred notification channel (in-app is the default plan).
+- [x] ~~Preferred notification channel~~ → **decided and built: in-app only** (`notifications`
+      table + `/notifications`), no email/SMS in v1 — see `CLAUDE.md`'s auth/notifications
+      reasoning. An external channel is listed as an optional stretch goal in `TODO.md`, not core
+      scope.
 - [ ] Typical scale: number of personnel, shifts/week.
 - [X] What happens today when a shift can't be fully staffed? **decided: This can't happen, in this case they usually start making phone calls to see who can fill the gap. The app should flag this as a priority problem for the admin to see. In the future we can add a feature that the app sends a notification to all relevant personell (according to the requirements) to tell them that the shift is empty so they can maybe volunteer (in person) but this isnt for now. 
 - [X] Who has final approval authority on a published schedule? **decided: the admin reviews the suggested schedule and can approve it and publish it.
-- [ ] How far ahead should a worker be warned that a qualification is about to expire (e.g., 30
-      days)?
+- [x] ~~How far ahead should a worker be warned that a qualification is about to expire~~ →
+      **decided and built: admin-configurable**, not a hardcoded number — `expiring_soon_days` on
+      `/admin/settings` (`app_settings` table), defaulting to 30. Surfaced on both the admin
+      dashboard and the worker's own qualifications page.

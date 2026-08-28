@@ -235,7 +235,16 @@ this close to free, and retrofitting it later would mean reworking already-built
 
 ## Open items for the detailed technical plan (next doc)
 
-- Exact RLS policy SQL per table.
-- Exact shape of the scheduling heuristic (the matching algorithm's step-by-step logic).
-- Folder structure and component breakdown.
-- Error handling and validation conventions (e.g., how Server Action errors surface to the UI).
+All resolved during implementation — kept here (rather than deleted) as a record of what this
+doc originally deferred to the next one, per its own framing above:
+
+- Exact RLS policy SQL per table → `supabase/migrations/20260822061054_add_rls_policies.sql`,
+  summarized in `docs/security.md`.
+- Exact shape of the scheduling heuristic → `docs/technical-plan.md`'s "Core business logic"
+  section and `features/scheduling/heuristic.ts`, unit-tested in
+  `features/scheduling/__tests__/heuristic.test.ts`.
+- Folder structure and component breakdown → `docs/technical-plan.md`'s "Folder structure" and
+  "Core components" sections.
+- Error handling and validation conventions → `docs/technical-plan.md`'s "Error handling" and
+  "Input validation" sections; `app/error.tsx` for the error-boundary piece added later (see
+  `TODO.md`'s 2026-08-28 bug-fix entry).

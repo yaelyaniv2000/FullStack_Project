@@ -390,8 +390,10 @@ deleteWorkerPairingPreference(id: string): Result<void>  // admin only
 // features/settings/actions.ts   -- general app settings, decided 2026-08-26: kept separate from
 // features/scheduling/ since EXPIRING_SOON_DAYS is a worker-qualifications concern, not a
 // scheduling one -- the /admin/settings PAGE composes both, it's a UI aggregation, not a
-// data-layer merge. Storage shape (single-row config table vs. key/value rows) TBD at
-// implementation time.
+// data-layer merge. Storage shape decided and built (Phase 5): a true singleton table
+// (`app_settings`, `unique index ((true))` trick -- at most one row, ever), explicit typed
+// columns rather than generic key/value rows, matching scheduling_constraints' "known, fixed set
+// of settings" convention.
 updateExpiringSoonDays(days: number): Result<void>  // admin only
 ```
 
@@ -567,8 +569,19 @@ What *does* use local React state, and where:
 
 ## Open items before implementation starts
 
-- Finalize the SQL for the qualification-expiry view against a real Supabase instance.
-- Decide the exact "expiring soon" warning window (open question in `product-spec.md`).
-- Write actual RLS policy SQL per table (drafted conceptually in `architecture.md`, not yet SQL).
-- Once the squadron's real "additional conditions" are known (beyond `min_rest_hours` and
-  `max_shifts_per_window`), add each as a new `scheduling_constraints` type + eligibility case.
+The first three are resolved — kept here as a record of what this doc originally deferred, per
+its own framing above. The fourth genuinely remains open, same reason as `product-spec.md`'s
+still-open items: it depends on real squadron input this project never received.
+
+- ~~Finalize the SQL for the qualification-expiry view against a real Supabase instance.~~ →
+  built as a query function, not a stored view (see "Qualification expiry" above) —
+  `features/worker-qualifications/queries.ts`'s `computeExpiresOn`/`getLatestRenewalDates`,
+  unit-tested in `features/worker-qualifications/__tests__/computeExpiresOn.test.ts`.
+- ~~Decide the exact "expiring soon" warning window~~ → admin-configurable, not a fixed number —
+  `expiring_soon_days` on `/admin/settings`, defaulting to 30 (`docs/product-spec.md`'s "Open
+  questions" checklist has the full decision record).
+- ~~Write actual RLS policy SQL per table~~ →
+  `supabase/migrations/20260822061054_add_rls_policies.sql`, summarized in `docs/security.md`.
+- **Still open**: once the squadron's real "additional conditions" are known (beyond
+  `min_rest_hours` and `max_shifts_per_window`), add each as a new `scheduling_constraints` type +
+  eligibility case.
