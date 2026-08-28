@@ -804,9 +804,17 @@ opt-in — see `docs/test-spec.md` for why it's kept separate).
       Verified against the real dev Supabase project (created a real account, confirmed the
       `profiles` row via a direct query, confirmed the `npm run create-admin --` argument-passing
       documented in the README actually works, deleted the test account after).
-- [ ] 🔌 Confirm final deploy on Vercel works end-to-end from a fresh browser/incognito session —
-      blocked on pushing this phase's commit (not done yet, pending user confirmation since a
-      push affects the live deployment); local `npm run build` already passes clean.
+- [X] 🔌 Confirm final deploy on Vercel works end-to-end from a fresh browser/incognito session —
+      pushed Phase 7's commit, polled the GitHub commit status until Vercel reported success, then
+      confirmed against the live URL itself (not just the deploy status): fresh `age: 0` response
+      (not a stale cached build), `dir="rtl"`/`lang="he"` intact, and every route tried while
+      logged out (`/`, `/dashboard`, `/admin/shifts`) correctly 307-redirects to `/login` — the
+      auth guard is real in production, not just locally. **Real bug caught this way**: the
+      browser tab title was still literally "Create Next App," the `create-next-app` scaffold
+      default — `app/layout.tsx`'s `metadata` was never updated after the app was named "המשבצת"
+      back in Phase 3. Fixed, rebuilt, retested, pushed again, reconfirmed live.
+
+**Phase 7 complete.**
 
 ## Phase 8 — Presentation
 
