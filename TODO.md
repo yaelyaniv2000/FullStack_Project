@@ -851,6 +851,20 @@ imports the schema constant directly, which works fine in isolation. Worth remem
 a schema/type is pulled out of an action file "just for testing": the *destination* file mattered
 more than the fact that a test could still import it.
 
+**Second, unrelated issue found immediately after, same symptom class**: after the fix above,
+creating a worker still failed — a different Vercel log this time: `Error: supabaseKey is
+required.` from `createAdminClient()` (`lib/supabase/admin.ts`). `SUPABASE_SERVICE_ROLE_KEY` was
+missing/unset for the Production environment specifically in Vercel's project settings — a
+pre-existing gap, not something this session introduced, and not caught earlier because prior
+verification of `createWorkerAccount` (Phase 2) was done against local dev (`npm run dev` +
+`.env.local`), never against the actual live Vercel deployment's own env vars. `createAdminClient`
+is used by exactly one action (`createWorkerAccount`), which is why only that flow was affected by
+this second issue, not the other three from the first bug. User added the key in Vercel, redeployed,
+and confirmed worker creation now works on the live site. **Rule going forward**: a feature that
+touches the service-role client specifically needs its own live-deployment check, not just a local
+one — local `.env.local` and Vercel's env vars are two separate configurations that can silently
+drift apart.
+
 ## Phase 8 — Presentation
 
 - [ ] 🧭 Prepare the 10–15 minute presentation covering: problem, users, business value,
