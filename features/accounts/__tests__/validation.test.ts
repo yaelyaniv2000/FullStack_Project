@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { createWorkerSchema } from "../actions";
+import { createWorkerSchema } from "../schema";
 
 const valid = { fullName: "עידן כהן", email: "idan@example.com", password: "password123" };
 

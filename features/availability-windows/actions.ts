@@ -1,21 +1,10 @@
 "use server";
 
-import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
-
-export const windowSchema = z
-  .object({
-    label: z.string().min(1, "נא להזין שם"),
-    opensAt: z.string().min(1, "נא לבחור תאריך פתיחה"),
-    closesAt: z.string().min(1, "נא לבחור תאריך סגירה"),
-  })
-  .refine((v) => v.closesAt > v.opensAt, {
-    message: "תאריך הסגירה חייב להיות אחרי תאריך הפתיחה",
-    path: ["closesAt"],
-  });
+import { windowSchema } from "./schema";
 
 function parseWindowFields(formData: FormData) {
   return windowSchema.safeParse({

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { qualificationSchema } from "../actions";
+import { qualificationSchema } from "../schema";
 
 describe("qualificationSchema (invalid input)", () => {
   test("accepts a name with no renewal interval (never expires)", () => {

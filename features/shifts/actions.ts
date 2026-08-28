@@ -1,24 +1,10 @@
 "use server";
 
-import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
-
-export const shiftSchema = z
-  .object({
-    name: z.string().nullable(),
-    date: z.string().min(1, "נא לבחור תאריך"),
-    startTime: z.string().min(1, "נא לבחור שעת התחלה"),
-    endTime: z.string().min(1, "נא לבחור שעת סיום"),
-    location: z.string().nullable(),
-    availabilityWindowId: z.string().nullable(),
-  })
-  .refine((v) => v.endTime > v.startTime, {
-    message: "שעת הסיום חייבת להיות אחרי שעת ההתחלה",
-    path: ["endTime"],
-  });
+import { shiftSchema } from "./schema";
 
 /** Zips the parallel positionId[]/headcountNeeded[] fields back into rows, dropping invalid ones. */
 function parsePositionRows(formData: FormData): { positionId: string; headcountNeeded: number }[] {

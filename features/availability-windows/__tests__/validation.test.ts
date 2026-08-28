@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { windowSchema } from "../actions";
+import { windowSchema } from "../schema";
 
 const valid = {
   label: "ספטמבר שבוע 1",

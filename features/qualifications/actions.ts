@@ -1,19 +1,10 @@
 "use server";
 
-import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "@/lib/result";
-
-export const qualificationSchema = z.object({
-  name: z.string().min(1, "נא להזין שם"),
-  renewalIntervalDays: z
-    .number()
-    .int("נא להזין מספר שלם")
-    .positive("נא להזין מספר חיובי")
-    .nullable(),
-});
+import { qualificationSchema } from "./schema";
 
 /** Empty input means "never expires" (null) -- NaN means the user typed something invalid. */
 function parseRenewalInterval(raw: FormDataEntryValue | null): number | null {
