@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ShiftForm } from "./ShiftForm";
+import { ShiftStatusBadge } from "./ShiftStatusBadge";
 import { deleteShift } from "@/features/shifts/actions";
 import type { Shift } from "@/features/shifts/queries";
 import type { ShiftTemplate } from "@/features/shift-templates/queries";
@@ -52,12 +53,6 @@ export function ShiftsList({
       )
     : shifts;
 
-  function statusBadge(s: Shift) {
-    if (s.publishedAt) return <Badge variant="default">פורסמה</Badge>;
-    if (s.assignedWorkerNames.length > 0) return <Badge variant="secondary">שובצה</Badge>;
-    return <Badge variant="outline">טיוטה</Badge>;
-  }
-
   return (
     <div className="flex flex-col gap-3">
       <Input
@@ -94,7 +89,7 @@ export function ShiftsList({
                       {s.location ? (
                         <span className="text-sm text-muted-foreground">{s.location}</span>
                       ) : null}
-                      {statusBadge(s)}
+                      <ShiftStatusBadge shift={s} />
                       {s.availabilityWindowLabel ? (
                         <Badge variant="secondary">{s.availabilityWindowLabel}</Badge>
                       ) : null}

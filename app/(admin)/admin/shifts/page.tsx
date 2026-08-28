@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ShiftForm } from "@/features/shifts/components/ShiftForm";
-import { ShiftsList } from "@/features/shifts/components/ShiftsList";
+import { ShiftsPanel } from "@/features/shifts/components/ShiftsPanel";
 import { listShifts } from "@/features/shifts/queries";
 import { listPositions } from "@/features/positions/queries";
 import { listQualifications } from "@/features/qualifications/queries";
@@ -26,36 +24,13 @@ export default async function ShiftsPage() {
         </Link>
       </div>
 
-      <div className="flex flex-col gap-6 md:flex-row">
-        <Card className="md:w-1/3">
-          <CardHeader>
-            <CardTitle>הוספת משמרת חדשה</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ShiftForm
-              allPositions={positions}
-              allQualifications={qualifications}
-              allTemplates={templates}
-              allAvailabilityWindows={availabilityWindows}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="md:w-2/3">
-          <CardHeader>
-            <CardTitle>משמרות קיימות ({shifts.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ShiftsList
-              shifts={shifts}
-              allPositions={positions}
-              allQualifications={qualifications}
-              allTemplates={templates}
-              allAvailabilityWindows={availabilityWindows}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <ShiftsPanel
+        shifts={shifts}
+        allPositions={positions}
+        allQualifications={qualifications}
+        allTemplates={templates}
+        allAvailabilityWindows={availabilityWindows}
+      />
     </div>
   );
 }
