@@ -38,8 +38,10 @@ function startOfWeek(d: Date): Date {
   return addDays(startOfDay(d), -d.getDay());
 }
 
+/** Slightly tinted rather than flat white/background -- an all-white grid on an already-light
+ * page (per user feedback) made the calendar hard to visually separate from its surroundings. */
 const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
-  draft: "border border-border bg-background text-foreground",
+  draft: "border border-border bg-card text-foreground",
   assigned: "bg-secondary text-secondary-foreground",
   published: "bg-primary text-primary-foreground",
 };
@@ -140,10 +142,8 @@ export function ShiftsCalendar({
     }
   }
 
-  const cellMinHeight = mode === "month" ? "min-h-24" : "min-h-48";
-
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex h-full flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-medium">
           {mode === "month" ? (
@@ -167,7 +167,7 @@ export function ShiftsCalendar({
 
       {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+      <div className="grid grid-cols-7 gap-1 rounded bg-muted/60 text-center text-xs text-muted-foreground">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="p-1">
             {label}
@@ -175,9 +175,18 @@ export function ShiftsCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div
+        className={`grid grid-cols-7 gap-1 ${mode === "week" ? "flex-1 auto-rows-fr" : ""}`}
+      >
         {cells.map((cell, i) => {
-          if (!cell) return <div key={i} className={`${cellMinHeight} rounded border border-transparent`} />;
+          if (!cell) {
+            return (
+              <div
+                key={i}
+                className={`${mode === "week" ? "h-full" : "min-h-24"} rounded border border-transparent`}
+              />
+            );
+          }
 
           const dayShifts = shiftsByDate.get(cell.key) ?? [];
           const isToday = cell.key === todayKey;
@@ -185,8 +194,8 @@ export function ShiftsCalendar({
           return (
             <div
               key={cell.key}
-              className={`flex ${cellMinHeight} flex-col gap-1 rounded border p-1 ${
-                isToday ? "border-primary" : "border-border"
+              className={`flex ${mode === "week" ? "h-full" : "min-h-24"} flex-col gap-1 rounded border p-1 ${
+                isToday ? "border-primary bg-primary/5" : "border-border bg-muted/30"
               }`}
             >
               <span className="text-xs text-muted-foreground">{cell.date.getDate()}</span>
@@ -218,6 +227,16 @@ export function ShiftsCalendar({
   );
 }
 
+function ShiftTooltipDetails({ shift }: { shift: Shift }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {shift.name ? <span className="font-medium">{shift.name}</span> : null}
+      <span dir="ltr">{timeRange(shift)}</span>
+      {shift.location ? <span>{shift.location}</span> : null}
+    </div>
+  );
+}
+
 /** Compact month-view chip: named shifts show their name (not the time, which barely fits at
  * this size anyway) -- the time is still available via the hover tooltip. No inline delete here
  * on purpose (per user feedback: the × ate too much of the little space this size has); deleting
@@ -240,18 +259,15 @@ function MonthChip({ shift, selected, onSelect }: { shift: Shift; selected: bool
         }
       />
       <TooltipContent side="top">
-        <div className="flex flex-col gap-0.5">
-          {shift.name ? <span className="font-medium">{shift.name}</span> : null}
-          <span dir="ltr">{timeRange(shift)}</span>
-          {shift.location ? <span>{shift.location}</span> : null}
-        </div>
+        <ShiftTooltipDetails shift={shift} />
       </TooltipContent>
     </Tooltip>
   );
 }
 
 /** Week-view card: more room, so it shows what the month chip can't -- name, hours, and location
- * -- plus keeps the delete affordance the month view dropped. */
+ * -- plus keeps the delete affordance the month view dropped. Still has a tooltip on top of that:
+ * long names/locations truncate in the card itself, so hovering shows them in full. */
 function WeekCard({
   shift,
   selected,
@@ -266,30 +282,37 @@ function WeekCard({
   const status = getShiftStatus(shift);
   const editable = isShiftEditable(shift);
   return (
-    <div
-      className={`flex items-start gap-1 rounded px-1.5 py-1 text-xs ${STATUS_BADGE_CLASSES[status]} ${
-        selected ? "ring-2 ring-ring" : ""
-      }`}
-    >
-      <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-start">
-        <div className="flex flex-col">
-          {shift.name ? (
-            <span className="truncate font-medium">{shift.name}</span>
-          ) : null}
-          <span dir="ltr">{timeRange(shift)}</span>
-          {shift.location ? <span className="truncate">{shift.location}</span> : null}
-        </div>
-      </button>
-      {editable ? (
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="מחיקת משמרת"
-          className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100"
-        >
-          <X className="size-3" />
-        </button>
-      ) : null}
-    </div>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <div
+            className={`flex items-start gap-1 rounded px-1.5 py-1 text-xs ${STATUS_BADGE_CLASSES[status]} ${
+              selected ? "ring-2 ring-ring" : ""
+            }`}
+          >
+            <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-start">
+              <div className="flex flex-col">
+                {shift.name ? <span className="truncate font-medium">{shift.name}</span> : null}
+                <span dir="ltr">{timeRange(shift)}</span>
+                {shift.location ? <span className="truncate">{shift.location}</span> : null}
+              </div>
+            </button>
+            {editable ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label="מחיקת משמרת"
+                className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100"
+              >
+                <X className="size-3" />
+              </button>
+            ) : null}
+          </div>
+        }
+      />
+      <TooltipContent side="top">
+        <ShiftTooltipDetails shift={shift} />
+      </TooltipContent>
+    </Tooltip>
   );
 }

@@ -155,7 +155,7 @@ export function ShiftsPanel({
             ) : null}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className={viewMode === "calendar" ? "flex flex-1 flex-col" : undefined}>
           {viewMode === "list" ? (
             <ShiftsList
               shifts={shifts}
