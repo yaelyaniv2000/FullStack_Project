@@ -291,6 +291,7 @@ export async function getScheduleReview(windowId: string): Promise<ScheduleRevie
 export type ActivePairingConflict = {
   shiftId: string;
   windowId: string;
+  shiftName: string | null;
   date: string;
   startTime: string;
   workerName1: string;
@@ -299,6 +300,7 @@ export type ActivePairingConflict = {
 
 type RawUpcomingShift = {
   id: string;
+  name: string | null;
   date: string;
   start_time: string;
   availability_window_id: string | null;
@@ -327,7 +329,7 @@ export async function listActivePairingConflicts(limit: number): Promise<ActiveP
 
   const { data: shifts } = await supabase
     .from("shifts")
-    .select("id, date, start_time, availability_window_id")
+    .select("id, name, date, start_time, availability_window_id")
     .gte("date", today)
     .not("availability_window_id", "is", null);
   if (!shifts || shifts.length === 0) return [];
@@ -350,6 +352,7 @@ export async function listActivePairingConflicts(limit: number): Promise<ActiveP
         conflicts.push({
           shiftId: shift.id,
           windowId: shift.availability_window_id!,
+          shiftName: shift.name,
           date: shift.date,
           startTime: shift.start_time,
           workerName1: pairing.worker1?.full_name ?? "",

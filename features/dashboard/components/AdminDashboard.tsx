@@ -98,6 +98,7 @@ export async function AdminDashboard() {
             <ul className="flex flex-col gap-2">
               {understaffed.map((s) => (
                 <li key={s.id} className="text-sm">
+                  {s.name ? <span className="font-bold">{s.name}</span> : null}{" "}
                   <span dir="ltr">
                     {s.date} · {s.startTime.slice(0, 5)}–{s.endTime.slice(0, 5)}
                   </span>
@@ -155,6 +156,7 @@ export async function AdminDashboard() {
             <ul className="flex flex-col gap-2">
               {upcoming.map((s) => (
                 <li key={s.id} className="text-sm">
+                  {s.name ? <span className="font-bold">{s.name}</span> : null}{" "}
                   <span dir="ltr">
                     {s.date} · {s.startTime.slice(0, 5)}–{s.endTime.slice(0, 5)}
                   </span>
@@ -213,7 +215,8 @@ export async function AdminDashboard() {
                   <Link href={`/admin/schedule/${c.windowId}`} className="hover:underline">
                     {c.workerName1} × {c.workerName2}
                   </Link>{" "}
-                  · <span dir="ltr">{c.date} {c.startTime.slice(0, 5)}</span>
+                  · {c.shiftName ? <span className="font-bold">{c.shiftName}</span> : null}{" "}
+                  <span dir="ltr">{c.date} {c.startTime.slice(0, 5)}</span>
                 </li>
               ))}
             </ul>

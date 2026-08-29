@@ -83,6 +83,7 @@ export async function listShifts({
 
 export type UpcomingShift = {
   id: string;
+  name: string | null;
   date: string;
   startTime: string;
   endTime: string;
@@ -94,16 +95,24 @@ export async function listUpcomingShifts(limit: number): Promise<UpcomingShift[]
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
     .from("shifts")
-    .select("id, date, start_time, end_time, location")
+    .select("id, name, date, start_time, end_time, location")
     .gte("date", today)
     .order("date", { ascending: true })
     .order("start_time", { ascending: true })
     .limit(limit);
 
   return (
-    (data as { id: string; date: string; start_time: string; end_time: string; location: string | null }[]) ?? []
+    (data as {
+      id: string;
+      name: string | null;
+      date: string;
+      start_time: string;
+      end_time: string;
+      location: string | null;
+    }[]) ?? []
   ).map((s) => ({
     id: s.id,
+    name: s.name,
     date: s.date,
     startTime: s.start_time,
     endTime: s.end_time,
@@ -113,6 +122,7 @@ export async function listUpcomingShifts(limit: number): Promise<UpcomingShift[]
 
 export type UnderstaffedShift = {
   id: string;
+  name: string | null;
   date: string;
   startTime: string;
   endTime: string;
@@ -121,6 +131,7 @@ export type UnderstaffedShift = {
 
 type RawUnderstaffedShift = {
   id: string;
+  name: string | null;
   date: string;
   start_time: string;
   end_time: string;
@@ -145,7 +156,7 @@ export async function listUnderstaffedShifts(limit: number): Promise<Understaffe
   const { data } = await supabase
     .from("shifts")
     .select(
-      `id, date, start_time, end_time,
+      `id, name, date, start_time, end_time,
       links:shift_positions!shift_positions_shift_id_fkey(position_id, headcount_needed, position:positions!shift_positions_position_id_fkey(name)),
       assignments:assignments!assignments_shift_id_fkey(position_id)`,
     )
@@ -164,6 +175,7 @@ export async function listUnderstaffedShifts(limit: number): Promise<Understaffe
         .filter((p) => p.assigned < p.needed);
       return {
         id: s.id,
+        name: s.name,
         date: s.date,
         startTime: s.start_time,
         endTime: s.end_time,
