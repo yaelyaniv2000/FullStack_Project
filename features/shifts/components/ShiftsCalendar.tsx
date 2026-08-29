@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { deleteShift } from "@/features/shifts/actions";
-import { getShiftStatus, isShiftEditable, type ShiftStatus } from "@/features/shifts/status";
+import { getShiftStatus, type ShiftStatus } from "@/features/shifts/status";
 import type { Shift } from "@/features/shifts/queries";
 
 const HEBREW_MONTHS = [
@@ -90,19 +89,14 @@ export function ShiftsCalendar({
   shifts,
   selectedShiftId,
   onSelectShift,
-  onDeleted,
 }: {
   mode: "month" | "week";
   shifts: Shift[];
   selectedShiftId?: string | null;
   onSelectShift: (shift: Shift) => void;
-  /** Called after a successful delete -- lets the parent clear its selection if the deleted
-   * shift was the one currently open in the edit form. */
-  onDeleted?: (id: string) => void;
 }) {
   const today = new Date();
   const [anchor, setAnchor] = useState(startOfDay(today));
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const todayKey = dateKey(today);
 
   const shiftsByDate = useMemo(() => {
@@ -132,16 +126,6 @@ export function ShiftsCalendar({
     setAnchor(startOfDay(today));
   }
 
-  async function handleDelete(id: string) {
-    setDeleteError(null);
-    const result = await deleteShift(id);
-    if (!result.success) {
-      setDeleteError(result.error);
-    } else {
-      onDeleted?.(id);
-    }
-  }
-
   return (
     <div className="flex h-full flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -164,8 +148,6 @@ export function ShiftsCalendar({
           </Button>
         </div>
       </div>
-
-      {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
 
       <div className="grid grid-cols-7 gap-1 rounded bg-muted/60 text-center text-xs text-muted-foreground">
         {WEEKDAY_LABELS.map((label) => (
@@ -214,7 +196,6 @@ export function ShiftsCalendar({
                       shift={s}
                       selected={selectedShiftId === s.id}
                       onSelect={() => onSelectShift(s)}
-                      onDelete={() => handleDelete(s.id)}
                     />
                   ),
                 )}
@@ -265,49 +246,28 @@ function MonthChip({ shift, selected, onSelect }: { shift: Shift; selected: bool
   );
 }
 
-/** Week-view card: more room, so it shows what the month chip can't -- name, hours, and location
- * -- plus keeps the delete affordance the month view dropped. Still has a tooltip on top of that:
- * long names/locations truncate in the card itself, so hovering shows them in full. */
-function WeekCard({
-  shift,
-  selected,
-  onSelect,
-  onDelete,
-}: {
-  shift: Shift;
-  selected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-}) {
+/** Week-view card: more room, so it shows what the month chip can't -- name, hours, and location.
+ * No delete affordance here either (per user feedback: deleting should only happen from the edit
+ * form a click opens, consistently across both calendar views, not inline from either one). Still
+ * has a tooltip on top of that: long names/locations truncate in the card itself, so hovering
+ * shows them in full. */
+function WeekCard({ shift, selected, onSelect }: { shift: Shift; selected: boolean; onSelect: () => void }) {
   const status = getShiftStatus(shift);
-  const editable = isShiftEditable(shift);
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <div
-            className={`flex items-start gap-1 rounded px-1.5 py-1 text-xs ${STATUS_BADGE_CLASSES[status]} ${
+          <button
+            type="button"
+            onClick={onSelect}
+            className={`flex w-full flex-col rounded px-1.5 py-1 text-start text-xs ${STATUS_BADGE_CLASSES[status]} ${
               selected ? "ring-2 ring-ring" : ""
             }`}
           >
-            <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-start">
-              <div className="flex flex-col">
-                {shift.name ? <span className="truncate font-medium">{shift.name}</span> : null}
-                <span dir="ltr">{timeRange(shift)}</span>
-                {shift.location ? <span className="truncate">{shift.location}</span> : null}
-              </div>
-            </button>
-            {editable ? (
-              <button
-                type="button"
-                onClick={onDelete}
-                aria-label="מחיקת משמרת"
-                className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100"
-              >
-                <X className="size-3" />
-              </button>
-            ) : null}
-          </div>
+            {shift.name ? <span className="truncate font-medium">{shift.name}</span> : null}
+            <span dir="ltr">{timeRange(shift)}</span>
+            {shift.location ? <span className="truncate">{shift.location}</span> : null}
+          </button>
         }
       />
       <TooltipContent side="top">

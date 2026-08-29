@@ -170,9 +170,6 @@ export function ShiftsPanel({
               shifts={shifts}
               selectedShiftId={selectedShift?.id}
               onSelectShift={setSelectedShift}
-              onDeleted={(id) => {
-                if (selectedShift?.id === id) clearSelection();
-              }}
             />
           )}
         </CardContent>
