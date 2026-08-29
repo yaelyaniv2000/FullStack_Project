@@ -865,6 +865,78 @@ touches the service-role client specifically needs its own live-deployment check
 one — local `.env.local` and Vercel's env vars are two separate configurations that can silently
 drift apart.
 
+## Wording tweaks (2026-08-29, user feedback)
+
+- [X] 💻 `/admin/qualifications`'s option-editor label: "אפשרויות בחירה" → "יצירת אופציות"
+      (`QualificationOptionsEditor.tsx`).
+- [X] 💻 Worker self-report form's option picker (`SelfReportQualificationForm.tsx` only, not the
+      admin's `GrantQualificationForm`, per the user's exact scoping): "אפשרות"/"בחירת אפשרות" →
+      "סוג"/"בחירת סוג".
+- [X] 💻 Header menu sheet title: "ניווט" → "תפריט" (`AppHeader.tsx`).
+
+## Shifts calendar view (2026-08-29, user feature request — the Batch-B item, built after all)
+
+`TODO.md`'s own Batch A/B triage (2026-08-27) explicitly deferred "full calendar with live-push
+editing" as Batch B, out of scope before the deadline. User asked to revisit it, explicitly as a
+separate branch first (`feature/shifts-calendar-view`) given the remaining time before
+2026-09-06 — a genuinely different, much more tractable feature than what was deferred: no
+real-time push to other open tabs (the thing that made Batch B's original scope actually hard),
+just a single-admin calendar UI following this app's existing request/response model
+(`revalidatePath` after every mutation, same as everywhere else). Iterated across several rounds
+of screenshot/live feedback before merging — see the commit history on the (now-kept, per user
+request, not deleted after merging) `feature/shifts-calendar-view` branch for the full sequence.
+
+- [X] 💻 `/admin/shifts` gets a list/calendar toggle (segmented control, defaults to list — no
+      behavior change unless switched). New `features/shifts/components/ShiftsPanel.tsx` (client)
+      owns the view-mode + selected-shift state that a calendar needs and a plain list never did;
+      `ShiftsList`/`ShiftForm` themselves are reused unchanged.
+- [X] 💻 Calendar has month and week modes (separate icon-only toggle, shown only while calendar
+      is active — visually nested under the list/calendar toggle, not a third independent option).
+      `features/shifts/components/ShiftsCalendar.tsx`. Month is a full grid; week is one row with
+      taller cells that stretch to match the height of the "add shift" card beside it.
+- [X] 💻 Click a draft/assigned (i.e. any not-yet-published — matches the same line
+      `deleteShift` already draws, not the narrower "no assignments yet" reading) shift → the
+      "add new shift" card swaps to that shift's edit form. Click a published shift → a new
+      read-only detail view instead (`ShiftReadOnlyView.tsx`). Save/cancel reverts to "add new
+      shift," exactly like the existing inline-edit pattern elsewhere in this app.
+- [X] 💻 Deleting a shift from the calendar is edit-form-only (a "מחיקת משמרת" button in
+      `ShiftsPanel`'s edit mode) — not inline on any calendar chip, in either month or week view.
+      Went through two iterations: month view's × was dropped first (too cramped at that size),
+      then week view's × was dropped too for consistency (user: delete should only happen from
+      the edit window in both views).
+- [X] 💻 New shared `features/shifts/status.ts` (`getShiftStatus`/`isShiftEditable`) and
+      `ShiftStatusBadge.tsx`, extracted from `ShiftsList`'s previously-inline status logic so the
+      calendar colors shifts identically instead of re-deriving the same three states.
+- [X] 💻 Month-view chips show the shift's name (not its time) when named, plus a hover tooltip
+      (new shadcn `Tooltip`, Base UI-backed — `components/ui/tooltip.tsx`, app wrapped in
+      `TooltipProvider`) with name/time/location — added to week view too once the user asked,
+      since long names/locations still truncate in the week card. Tooltip recolored from the
+      shadcn default (dark bg/light text) to light gray/black per user feedback, changed on the
+      shared component so any future tooltip elsewhere gets the same look for free.
+      Calendar-cell backgrounds got a light `bg-muted` tint (were plain white, blending into the
+      page) with a soft primary tint for today's cell.
+- [X] 🧭 Merged into `main` after the branch stabilized — `git merge --no-ff`, full
+      typecheck/test/lint/build verification post-merge (all clean, no conflicts — the branch and
+      `main` touched non-overlapping files), pushed, confirmed live (fresh, non-cached response).
+      Branch kept (not deleted) per explicit user request, even though fully merged.
+- [ ] 🔌 *(not done, not asked for)* No automated test covers the calendar's click/toggle/tooltip
+      interactions — same reasoning as everywhere else in this app needing a real browser
+      (`docs/test-spec.md`): jsdom-based RTL tests could technically drive the clicks, but weren't
+      written for this feature. Worth a manual regression pass before the final demo if time
+      allows, not currently tracked as a manual-checklist item in `docs/test-spec.md`.
+
+## Small fixes (2026-08-29)
+
+- [X] 💻 Admin dashboard: shift name (bold, when the shift has one) now shows on all three
+      shift-referencing widgets — "משמרות תת-מאוישות," "משמרות קרובות," and "התנגשויות העדפת
+      שיבוץ." None of the three queries backing them (`listUnderstaffedShifts`,
+      `listUpcomingShifts`, `listActivePairingConflicts`) had ever selected `shifts.name` at all
+      — not a regression, just never added when those widgets were first built (Phase 3/5,
+      before `shifts.name` even existed as a column — added later in the 2026-08-27 UX batch).
+      Verified against a real seeded named shift that the name actually renders inside a
+      `font-bold` element, not just that the page loads. Pushed straight to `main` (unrelated to
+      the calendar branch, no reason to bundle it in or wait for that branch to merge).
+
 ## Phase 8 — Presentation
 
 - [ ] 🧭 Prepare the 10–15 minute presentation covering: problem, users, business value,

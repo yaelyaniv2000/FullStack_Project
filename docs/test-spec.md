@@ -150,6 +150,13 @@ not a first-time exploration:
       `/my-shifts` page shows nothing for an unpublished shift and the real assignment once
       published (the integration suite proves the RLS row-visibility half of this already —
       this manual pass is specifically about the page actually rendering it correctly).
+- [ ] `/admin/shifts`'s calendar view (added 2026-08-29, see `TODO.md`): list/calendar and
+      month/week toggles switch correctly; clicking a draft/assigned shift opens its edit form in
+      the left card and clicking a published one opens the read-only view instead; save/cancel/
+      delete-from-the-edit-form all correctly return to "add new shift"; the hover tooltip appears
+      on both month chips and week cards and disappears on mouse-out. No automated test covers
+      this (a real click-driven UI flow — see the Playwright limitation above), so this is a
+      first-time verification item, not yet a confirmed regression check.
 
 ## כיצד להריץ (How to run)
 
