@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Hebrew, Geist_Mono } from "next/font/google";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const notoSansHebrew = Noto_Sans_Hebrew({
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${notoSansHebrew.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <DirectionProvider direction="rtl">{children}</DirectionProvider>
+        <DirectionProvider direction="rtl">
+          <TooltipProvider>{children}</TooltipProvider>
+        </DirectionProvider>
       </body>
     </html>
   );

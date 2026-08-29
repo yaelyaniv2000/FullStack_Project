@@ -1,0 +1,278 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { getShiftStatus, type ShiftStatus } from "@/features/shifts/status";
+import type { Shift } from "@/features/shifts/queries";
+
+const HEBREW_MONTHS = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
+const WEEKDAY_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+
+/** Local Y-M-D key, deliberately not Date#toISOString() -- that converts to UTC first, which can
+ * shift the calendar date by a day depending on the browser's timezone offset. `shift.date` is a
+ * plain Postgres `date` (no time/timezone component), so the grid needs the same plain
+ * year/month/day construction to line up with it. */
+function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function addDays(d: Date, days: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+}
+
+function addMonths(d: Date, months: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + months, 1);
+}
+
+function startOfWeek(d: Date): Date {
+  return addDays(startOfDay(d), -d.getDay());
+}
+
+/** Slightly tinted rather than flat white/background -- an all-white grid on an already-light
+ * page (per user feedback) made the calendar hard to visually separate from its surroundings. */
+const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
+  draft: "border border-border bg-card text-foreground",
+  assigned: "bg-secondary text-secondary-foreground",
+  published: "bg-primary text-primary-foreground",
+};
+
+type CalendarCell = { date: Date; key: string } | null;
+
+function buildMonthGrid(anchor: Date): CalendarCell[] {
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: CalendarCell[] = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    cells.push({ date, key: dateKey(date) });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function buildWeekRow(anchor: Date): CalendarCell[] {
+  const start = startOfWeek(anchor);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(start, i);
+    return { date, key: dateKey(date) };
+  });
+}
+
+/** D.M -- D.M, deliberately wrapped in dir="ltr": a dash-separated numeric range is exactly the
+ * bidi-reordering case CLAUDE.md's date/time rule warns about. */
+function formatWeekRange(anchor: Date): string {
+  const start = startOfWeek(anchor);
+  const end = addDays(start, 6);
+  const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
+  return `${fmt(start)}–${fmt(end)}`;
+}
+
+function timeRange(s: Shift): string {
+  return `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}`;
+}
+
+export function ShiftsCalendar({
+  mode,
+  shifts,
+  selectedShiftId,
+  onSelectShift,
+}: {
+  mode: "month" | "week";
+  shifts: Shift[];
+  selectedShiftId?: string | null;
+  onSelectShift: (shift: Shift) => void;
+}) {
+  const today = new Date();
+  const [anchor, setAnchor] = useState(startOfDay(today));
+  const todayKey = dateKey(today);
+
+  const shiftsByDate = useMemo(() => {
+    const map = new Map<string, Shift[]>();
+    for (const s of shifts) {
+      const list = map.get(s.date) ?? [];
+      list.push(s);
+      map.set(s.date, list);
+    }
+    return map;
+  }, [shifts]);
+
+  const cells = useMemo(
+    () => (mode === "month" ? buildMonthGrid(anchor) : buildWeekRow(anchor)),
+    [mode, anchor],
+  );
+
+  function goToPrev() {
+    setAnchor((a) => (mode === "month" ? addMonths(a, -1) : addDays(a, -7)));
+  }
+
+  function goToNext() {
+    setAnchor((a) => (mode === "month" ? addMonths(a, 1) : addDays(a, 7)));
+  }
+
+  function goToToday() {
+    setAnchor(startOfDay(today));
+  }
+
+  return (
+    <div className="flex h-full flex-1 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium">
+          {mode === "month" ? (
+            `${HEBREW_MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
+          ) : (
+            <span dir="ltr">{formatWeekRange(anchor)}</span>
+          )}
+        </span>
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={goToToday}>
+            היום
+          </Button>
+          <Button type="button" variant="outline" size="icon" onClick={goToPrev} aria-label="הקודם">
+            <ChevronRight className="size-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" onClick={goToNext} aria-label="הבא">
+            <ChevronLeft className="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 rounded bg-muted/60 text-center text-xs text-muted-foreground">
+        {WEEKDAY_LABELS.map((label) => (
+          <div key={label} className="p-1">
+            {label}
+          </div>
+        ))}
+      </div>
+
+      <div
+        className={`grid grid-cols-7 gap-1 ${mode === "week" ? "flex-1 auto-rows-fr" : ""}`}
+      >
+        {cells.map((cell, i) => {
+          if (!cell) {
+            return (
+              <div
+                key={i}
+                className={`${mode === "week" ? "h-full" : "min-h-24"} rounded border border-transparent`}
+              />
+            );
+          }
+
+          const dayShifts = shiftsByDate.get(cell.key) ?? [];
+          const isToday = cell.key === todayKey;
+
+          return (
+            <div
+              key={cell.key}
+              className={`flex ${mode === "week" ? "h-full" : "min-h-24"} flex-col gap-1 rounded border p-1 ${
+                isToday ? "border-primary bg-primary/5" : "border-border bg-muted/30"
+              }`}
+            >
+              <span className="text-xs text-muted-foreground">{cell.date.getDate()}</span>
+              <div className="flex flex-col gap-1">
+                {dayShifts.map((s) =>
+                  mode === "month" ? (
+                    <MonthChip
+                      key={s.id}
+                      shift={s}
+                      selected={selectedShiftId === s.id}
+                      onSelect={() => onSelectShift(s)}
+                    />
+                  ) : (
+                    <WeekCard
+                      key={s.id}
+                      shift={s}
+                      selected={selectedShiftId === s.id}
+                      onSelect={() => onSelectShift(s)}
+                    />
+                  ),
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ShiftTooltipDetails({ shift }: { shift: Shift }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {shift.name ? <span className="font-medium">{shift.name}</span> : null}
+      <span dir="ltr">{timeRange(shift)}</span>
+      {shift.location ? <span>{shift.location}</span> : null}
+    </div>
+  );
+}
+
+/** Compact month-view chip: named shifts show their name (not the time, which barely fits at
+ * this size anyway) -- the time is still available via the hover tooltip. No inline delete here
+ * on purpose (per user feedback: the × ate too much of the little space this size has); deleting
+ * happens from the edit form the chip opens instead. */
+function MonthChip({ shift, selected, onSelect }: { shift: Shift; selected: boolean; onSelect: () => void }) {
+  const status = getShiftStatus(shift);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={onSelect}
+            className={`w-full truncate rounded px-1.5 py-0.5 text-start text-xs ${STATUS_BADGE_CLASSES[status]} ${
+              selected ? "ring-2 ring-ring" : ""
+            }`}
+          >
+            {shift.name ?? <span dir="ltr">{shift.startTime.slice(0, 5)}</span>}
+          </button>
+        }
+      />
+      <TooltipContent side="top">
+        <ShiftTooltipDetails shift={shift} />
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** Week-view card: more room, so it shows what the month chip can't -- name, hours, and location.
+ * No delete affordance here either (per user feedback: deleting should only happen from the edit
+ * form a click opens, consistently across both calendar views, not inline from either one). Still
+ * has a tooltip on top of that: long names/locations truncate in the card itself, so hovering
+ * shows them in full. */
+function WeekCard({ shift, selected, onSelect }: { shift: Shift; selected: boolean; onSelect: () => void }) {
+  const status = getShiftStatus(shift);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={onSelect}
+            className={`flex w-full flex-col rounded px-1.5 py-1 text-start text-xs ${STATUS_BADGE_CLASSES[status]} ${
+              selected ? "ring-2 ring-ring" : ""
+            }`}
+          >
+            {shift.name ? <span className="truncate font-medium">{shift.name}</span> : null}
+            <span dir="ltr">{timeRange(shift)}</span>
+            {shift.location ? <span className="truncate">{shift.location}</span> : null}
+          </button>
+        }
+      />
+      <TooltipContent side="top">
+        <ShiftTooltipDetails shift={shift} />
+      </TooltipContent>
+    </Tooltip>
+  );
+}
