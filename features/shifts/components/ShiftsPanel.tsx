@@ -1,18 +1,46 @@
 "use client";
 
 import { useState } from "react";
+import { List, CalendarDays, LayoutGrid, Rows3 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShiftForm } from "./ShiftForm";
 import { ShiftsList } from "./ShiftsList";
 import { ShiftsCalendar } from "./ShiftsCalendar";
 import { ShiftReadOnlyView } from "./ShiftReadOnlyView";
+import { deleteShift } from "@/features/shifts/actions";
 import { isShiftEditable } from "@/features/shifts/status";
 import type { Shift } from "@/features/shifts/queries";
 import type { ShiftTemplate } from "@/features/shift-templates/queries";
 import type { Qualification } from "@/features/qualifications/queries";
 import type { PositionRef } from "./ShiftPositionsPicker";
 import type { AvailabilityWindow } from "@/features/availability-windows/queries";
+
+function ToggleSegment({
+  active,
+  onClick,
+  ariaLabel,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  ariaLabel?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={active}
+      className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-sm ${
+        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 /** Owns the two pieces of state a calendar view needs that the plain list view never did: which
  * shift is selected (drives the left card swapping between create/edit/read-only) and which view
@@ -31,10 +59,24 @@ export function ShiftsPanel({
   allAvailabilityWindows: AvailabilityWindow[];
 }) {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [calendarMode, setCalendarMode] = useState<"month" | "week">("month");
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function clearSelection() {
     setSelectedShift(null);
+    setDeleteError(null);
+  }
+
+  async function handleDeleteSelected() {
+    if (!selectedShift) return;
+    setDeleteError(null);
+    const result = await deleteShift(selectedShift.id);
+    if (!result.success) {
+      setDeleteError(result.error);
+    } else {
+      clearSelection();
+    }
   }
 
   const editing = selectedShift && isShiftEditable(selectedShift);
@@ -52,43 +94,65 @@ export function ShiftsPanel({
           {viewing && selectedShift ? (
             <ShiftReadOnlyView shift={selectedShift} onClose={clearSelection} />
           ) : (
-            <ShiftForm
-              key={
-                editing && selectedShift
-                  ? `${selectedShift.id}-${selectedShift.name}-${selectedShift.date}-${selectedShift.startTime}-${selectedShift.endTime}-${selectedShift.location}-${selectedShift.availabilityWindowId}`
-                  : "create"
-              }
-              shift={editing && selectedShift ? selectedShift : undefined}
-              allPositions={allPositions}
-              allQualifications={allQualifications}
-              allTemplates={allTemplates}
-              allAvailabilityWindows={allAvailabilityWindows}
-              onDone={clearSelection}
-            />
+            <div className="flex flex-col gap-4">
+              <ShiftForm
+                key={
+                  editing && selectedShift
+                    ? `${selectedShift.id}-${selectedShift.name}-${selectedShift.date}-${selectedShift.startTime}-${selectedShift.endTime}-${selectedShift.location}-${selectedShift.availabilityWindowId}`
+                    : "create"
+                }
+                shift={editing && selectedShift ? selectedShift : undefined}
+                allPositions={allPositions}
+                allQualifications={allQualifications}
+                allTemplates={allTemplates}
+                allAvailabilityWindows={allAvailabilityWindows}
+                onDone={clearSelection}
+              />
+              {editing ? (
+                <div className="flex flex-col gap-2 border-t pt-4">
+                  {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
+                  <Button type="button" variant="outline" className="text-destructive" onClick={handleDeleteSelected}>
+                    מחיקת משמרת
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           )}
         </CardContent>
       </Card>
 
       <Card className="md:w-2/3">
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>משמרות קיימות ({shifts.length})</CardTitle>
-          <div className="flex gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={viewMode === "list" ? "default" : "outline"}
-              onClick={() => setViewMode("list")}
-            >
-              רשימה
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={viewMode === "calendar" ? "default" : "outline"}
-              onClick={() => setViewMode("calendar")}
-            >
-              לוח שנה
-            </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-md border p-0.5">
+              <ToggleSegment active={viewMode === "list"} onClick={() => setViewMode("list")}>
+                <List className="size-4" />
+                רשימה
+              </ToggleSegment>
+              <ToggleSegment active={viewMode === "calendar"} onClick={() => setViewMode("calendar")}>
+                <CalendarDays className="size-4" />
+                לוח שנה
+              </ToggleSegment>
+            </div>
+            {viewMode === "calendar" ? (
+              <div className="flex rounded-md border p-0.5 ps-2">
+                <ToggleSegment
+                  active={calendarMode === "month"}
+                  onClick={() => setCalendarMode("month")}
+                  ariaLabel="תצוגת חודש"
+                >
+                  <LayoutGrid className="size-4" />
+                </ToggleSegment>
+                <ToggleSegment
+                  active={calendarMode === "week"}
+                  onClick={() => setCalendarMode("week")}
+                  ariaLabel="תצוגת שבוע"
+                >
+                  <Rows3 className="size-4" />
+                </ToggleSegment>
+              </div>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>
@@ -102,6 +166,7 @@ export function ShiftsPanel({
             />
           ) : (
             <ShiftsCalendar
+              mode={calendarMode}
               shifts={shifts}
               selectedShiftId={selectedShift?.id}
               onSelectShift={setSelectedShift}

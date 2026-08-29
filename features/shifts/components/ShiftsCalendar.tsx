@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { deleteShift } from "@/features/shifts/actions";
 import { getShiftStatus, isShiftEditable, type ShiftStatus } from "@/features/shifts/status";
 import type { Shift } from "@/features/shifts/queries";
@@ -78,12 +79,18 @@ function formatWeekRange(anchor: Date): string {
   return `${fmt(start)}–${fmt(end)}`;
 }
 
+function timeRange(s: Shift): string {
+  return `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}`;
+}
+
 export function ShiftsCalendar({
+  mode,
   shifts,
   selectedShiftId,
   onSelectShift,
   onDeleted,
 }: {
+  mode: "month" | "week";
   shifts: Shift[];
   selectedShiftId?: string | null;
   onSelectShift: (shift: Shift) => void;
@@ -92,7 +99,6 @@ export function ShiftsCalendar({
   onDeleted?: (id: string) => void;
 }) {
   const today = new Date();
-  const [calendarMode, setCalendarMode] = useState<"month" | "week">("month");
   const [anchor, setAnchor] = useState(startOfDay(today));
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const todayKey = dateKey(today);
@@ -108,16 +114,16 @@ export function ShiftsCalendar({
   }, [shifts]);
 
   const cells = useMemo(
-    () => (calendarMode === "month" ? buildMonthGrid(anchor) : buildWeekRow(anchor)),
-    [calendarMode, anchor],
+    () => (mode === "month" ? buildMonthGrid(anchor) : buildWeekRow(anchor)),
+    [mode, anchor],
   );
 
   function goToPrev() {
-    setAnchor((a) => (calendarMode === "month" ? addMonths(a, -1) : addDays(a, -7)));
+    setAnchor((a) => (mode === "month" ? addMonths(a, -1) : addDays(a, -7)));
   }
 
   function goToNext() {
-    setAnchor((a) => (calendarMode === "month" ? addMonths(a, 1) : addDays(a, 7)));
+    setAnchor((a) => (mode === "month" ? addMonths(a, 1) : addDays(a, 7)));
   }
 
   function goToToday() {
@@ -134,45 +140,27 @@ export function ShiftsCalendar({
     }
   }
 
-  const cellMinHeight = calendarMode === "month" ? "min-h-24" : "min-h-40";
+  const cellMinHeight = mode === "month" ? "min-h-24" : "min-h-48";
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
-          <Button type="button" variant="outline" size="icon" onClick={goToPrev} aria-label="הקודם">
-            <ChevronRight className="size-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" onClick={goToNext} aria-label="הבא">
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={goToToday}>
-            היום
-          </Button>
-        </div>
         <span className="font-medium">
-          {calendarMode === "month" ? (
+          {mode === "month" ? (
             `${HEBREW_MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
           ) : (
             <span dir="ltr">{formatWeekRange(anchor)}</span>
           )}
         </span>
-        <div className="flex gap-1">
-          <Button
-            type="button"
-            size="sm"
-            variant={calendarMode === "month" ? "default" : "outline"}
-            onClick={() => setCalendarMode("month")}
-          >
-            חודש
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={goToToday}>
+            היום
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={calendarMode === "week" ? "default" : "outline"}
-            onClick={() => setCalendarMode("week")}
-          >
-            שבוע
+          <Button type="button" variant="outline" size="icon" onClick={goToPrev} aria-label="הקודם">
+            <ChevronRight className="size-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" onClick={goToNext} aria-label="הבא">
+            <ChevronLeft className="size-4" />
           </Button>
         </div>
       </div>
@@ -203,44 +191,105 @@ export function ShiftsCalendar({
             >
               <span className="text-xs text-muted-foreground">{cell.date.getDate()}</span>
               <div className="flex flex-col gap-1">
-                {dayShifts.map((s) => {
-                  const editable = isShiftEditable(s);
-                  const status = getShiftStatus(s);
-                  return (
-                    <div key={s.id} className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => onSelectShift(s)}
-                        className={`min-w-0 flex-1 truncate rounded px-1.5 py-0.5 text-start text-xs ${STATUS_BADGE_CLASSES[status]} ${
-                          selectedShiftId === s.id ? "ring-2 ring-ring" : ""
-                        }`}
-                        title={s.name ?? undefined}
-                      >
-                        <span dir="ltr">
-                          {calendarMode === "week"
-                            ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}`
-                            : s.startTime.slice(0, 5)}
-                        </span>
-                        {s.name ? ` ${s.name}` : ""}
-                      </button>
-                      {editable ? (
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(s.id)}
-                          aria-label="מחיקת משמרת"
-                          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                {dayShifts.map((s) =>
+                  mode === "month" ? (
+                    <MonthChip
+                      key={s.id}
+                      shift={s}
+                      selected={selectedShiftId === s.id}
+                      onSelect={() => onSelectShift(s)}
+                    />
+                  ) : (
+                    <WeekCard
+                      key={s.id}
+                      shift={s}
+                      selected={selectedShiftId === s.id}
+                      onSelect={() => onSelectShift(s)}
+                      onDelete={() => handleDelete(s.id)}
+                    />
+                  ),
+                )}
               </div>
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Compact month-view chip: named shifts show their name (not the time, which barely fits at
+ * this size anyway) -- the time is still available via the hover tooltip. No inline delete here
+ * on purpose (per user feedback: the × ate too much of the little space this size has); deleting
+ * happens from the edit form the chip opens instead. */
+function MonthChip({ shift, selected, onSelect }: { shift: Shift; selected: boolean; onSelect: () => void }) {
+  const status = getShiftStatus(shift);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={onSelect}
+            className={`w-full truncate rounded px-1.5 py-0.5 text-start text-xs ${STATUS_BADGE_CLASSES[status]} ${
+              selected ? "ring-2 ring-ring" : ""
+            }`}
+          >
+            {shift.name ?? <span dir="ltr">{shift.startTime.slice(0, 5)}</span>}
+          </button>
+        }
+      />
+      <TooltipContent side="top">
+        <div className="flex flex-col gap-0.5">
+          {shift.name ? <span className="font-medium">{shift.name}</span> : null}
+          <span dir="ltr">{timeRange(shift)}</span>
+          {shift.location ? <span>{shift.location}</span> : null}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** Week-view card: more room, so it shows what the month chip can't -- name, hours, and location
+ * -- plus keeps the delete affordance the month view dropped. */
+function WeekCard({
+  shift,
+  selected,
+  onSelect,
+  onDelete,
+}: {
+  shift: Shift;
+  selected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const status = getShiftStatus(shift);
+  const editable = isShiftEditable(shift);
+  return (
+    <div
+      className={`flex items-start gap-1 rounded px-1.5 py-1 text-xs ${STATUS_BADGE_CLASSES[status]} ${
+        selected ? "ring-2 ring-ring" : ""
+      }`}
+    >
+      <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-start">
+        <div className="flex flex-col">
+          {shift.name ? (
+            <span className="truncate font-medium">{shift.name}</span>
+          ) : null}
+          <span dir="ltr">{timeRange(shift)}</span>
+          {shift.location ? <span className="truncate">{shift.location}</span> : null}
+        </div>
+      </button>
+      {editable ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="מחיקת משמרת"
+          className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100"
+        >
+          <X className="size-3" />
+        </button>
+      ) : null}
     </div>
   );
 }
