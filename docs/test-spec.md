@@ -45,7 +45,7 @@ real/seeded data.
 | Feature | Test | File |
 |---|---|---|
 | Qualification expiry/renewal math | `computeExpiresOn` — never-expires, plain interval, renewal-date extension, boundary equality, month/year rollover | `features/worker-qualifications/__tests__/computeExpiresOn.test.ts` |
-| Scheduling heuristic | Qualification matching, availability matching, scarcity ordering, fairness tiebreak, all 3 pairing types | `features/scheduling/__tests__/heuristic.test.ts` (21 cases, built in Phase 5) |
+| Scheduling heuristic | Qualification matching, availability matching, scarcity ordering, fairness tiebreak, all 3 pairing types | `features/scheduling/__tests__/heuristic.test.ts` (18 cases, built in Phase 5) |
 | Availability submission (worker) | Optimistic toggle, correct button state, calls `submitAvailability` with the right shift IDs (incl. grouped/overlapping shifts) | `features/availability/__tests__/AvailabilityShiftRow.test.tsx` |
 | Auth guards | `requireAdmin`/`requireWorker` return the right profile for the right role | `lib/__tests__/auth.test.ts` |
 | End-to-end core flow | Create shift → submit availability → generate → publish → worker sees it | `tests/integration/core-flow.test.ts` (also satisfies §3 below) |

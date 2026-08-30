@@ -43,3 +43,6 @@ supabase/.temp
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only submission deliverables (final PDFs, presentation prep — not part of the repo)
+/submission
